@@ -1,72 +1,38 @@
-# Annotation Tutor
+# 🎓 Annotation Tutor
 
-Annotation Tutor turns Obsidian learning annotations into local, agent-readable
-learning memory. A learner selects Markdown text, writes an explanation, and can
-ask an already authenticated OpenCode or Codex installation to review it.
+<p align="center">
+  <img src="Screenshots/Screenshot 2026-06-08 033945.png" alt="Annotation Tutor Dashboard" width="800">
+</p>
 
-The repository currently contains two desktop-only implementations:
+<p align="center">
+  <b>Turn Obsidian learning annotations into local, agent-readable learning memory.</b>
+</p>
 
-- The root workspace is the full MVP: sidecar JSON, generated Markdown, a
-  rebuildable SQLite/FTS index, REST, MCP, CLI, and an Obsidian plugin.
-- [`TutorLite`](TutorLite/README.md) is a separate Markdown-only plugin with no
-  server, MCP, or SQLite dependency.
+<p align="center">
+  <img src="https://img.shields.io/badge/node-%3E%3D22.13.0-blue?logo=node.js" alt="Node.js Version">
+  <img src="https://img.shields.io/badge/pnpm-%3E%3D10-orange?logo=pnpm" alt="pnpm Version">
+  <img src="https://img.shields.io/github/actions/workflow/status/Chain-Tang/PriveTutor/ci.yml?branch=main&label=build&logo=github" alt="Build Status">
+  <img src="https://img.shields.io/github/stars/Chain-Tang/PriveTutor?style=social" alt="GitHub Stars">
+</p>
 
-The core MVP implementation is substantially complete at the code and
-automated-test level. Real Obsidian and real-provider acceptance testing is
-still required before calling it release-ready. See
-[`docs/project-status.md`](docs/project-status.md) for the verified feature
-matrix and current gaps.
+---
 
-## Requirements
+## 🌟 Overview
 
-- Node.js 22.13 or newer
-- pnpm 10
-- Desktop Obsidian
-- Optional: an installed and authenticated OpenCode or Codex CLI
+**Annotation Tutor** is a powerful tool for learners who use Obsidian. It bridges the gap between manual note-taking and AI-assisted learning by turning your Markdown annotations into a structured "Learning Memory" that local agents (like OpenCode or Codex) can understand and review.
 
-## Development
+### Key Features
 
-```bash
-pnpm install
-pnpm check
-pnpm install:dev-plugin
-```
+- 📝 **Smart Annotations**: Select text, write explanations, and tag them for review.
+- 🤖 **Agent Integration**: Seamlessly connect with authenticated **OpenCode** or **Codex** for deep reviews.
+- 📂 **Dual Implementations**:
+  - **Full MVP**: Complete with sidecar JSON, SQLite/FTS index, REST/MCP servers, and a CLI.
+  - [**TutorLite**](TutorLite/README.md): A lightweight, Markdown-only version for quick use without server dependencies.
+- 🔍 **Local-First**: All data stays on your machine. Authoritative JSON and Markdown files with a rebuildable SQLite index.
 
-Open `Tutor` as an Obsidian Vault, enable the **Annotation Tutor** community
-plugin, and reload Obsidian after rebuilding the plugin.
+---
 
-Useful commands:
-
-```bash
-pnpm typecheck
-pnpm test
-pnpm build
-pnpm build:plugin
-pnpm dev:plugin
-pnpm install:dev-plugin
-```
-
-The standalone CLI is bundled to `apps/cli/dist/index.js`:
-
-```bash
-node apps/cli/dist/index.js doctor --vault Tutor
-node apps/cli/dist/index.js setup opencode --vault Tutor
-node apps/cli/dist/index.js setup codex --vault Tutor
-node apps/cli/dist/index.js start --vault Tutor
-node apps/cli/dist/index.js status --vault Tutor
-node apps/cli/dist/index.js export --vault Tutor
-node apps/cli/dist/index.js rebuild-index --vault Tutor
-```
-
-`TutorLite` has its own dependencies and commands:
-
-```bash
-pnpm --dir TutorLite typecheck
-pnpm --dir TutorLite test
-pnpm --dir TutorLite build
-```
-
-## Architecture
+## 🏗️ Architecture
 
 ```text
 domain -> core -> service -> apps/obsidian-plugin
@@ -77,41 +43,68 @@ domain -> core -> service -> apps/obsidian-plugin
 ui ---------------------> apps/obsidian-plugin
 ```
 
-- `packages/domain`: Zod schemas, public types, and domain errors.
-- `packages/core`: storage, SQLite/FTS, anchors, permissions, document access,
-  write-host leasing, and the shared application service.
-- `packages/service`: authenticated REST/MCP host, SSE review runs, runtime
-  wiring, and the typed client.
-- `packages/mcp`: ten annotation and document tools plus OpenCode/Codex setup.
-- `packages/agent-bridges`: read-only OpenCode and Codex review subprocesses.
-- `packages/ui`: shared React dashboard, annotation editor, onboarding, and
-  localization.
+- **`packages/domain`**: Zod schemas and core domain types.
+- **`packages/core`**: Storage, indexing (SQLite/FTS), and document access control.
+- **`packages/service`**: REST and MCP handlers serving the same application logic.
+- **`packages/mcp`**: Tools for AI agents to interact with your learning vault.
+- **`packages/ui`**: Shared React components for the dashboard and editor.
 
-REST and MCP are thin interfaces over the same `AnnotationTutorService`.
-Document access always begins with an annotation ID; arbitrary Vault paths are
-not accepted.
+---
 
-## Local Data
+## 🚀 Quick Start
 
-Authoritative data:
+### Prerequisites
 
-```text
-.obsidian/plugins/annotation-tutor/data/annotations/*.json
-Learning Memory/memory-cells/*.md
-Agent Context/recent-learning.md
+- **Node.js**: >= 22.13.0
+- **pnpm**: >= 10
+- **Obsidian**: Desktop version
+
+### Installation
+
+1. **Clone and Install Dependencies**:
+   ```bash
+   git clone https://github.com/Chain-Tang/PriveTutor.git
+   cd PriveTutor
+   pnpm install
+   ```
+
+2. **Setup Development Plugin**:
+   ```bash
+   pnpm install:dev-plugin
+   ```
+
+3. **Open in Obsidian**:
+   - Open the `Tutor` folder as an Obsidian Vault.
+   - Enable the **Annotation Tutor** community plugin.
+   - Reload Obsidian after the build finishes.
+
+---
+
+## 💻 CLI Usage
+
+The standalone CLI provides administrative tools for your vault:
+
+```bash
+# Check vault health
+node apps/cli/dist/index.js doctor --vault Tutor
+
+# Start the service
+node apps/cli/dist/index.js start --vault Tutor
+
+# Rebuild the search index
+node apps/cli/dist/index.js rebuild-index --vault Tutor
 ```
 
-Derived and rebuildable data:
+---
 
-```text
-.obsidian/plugins/annotation-tutor/data/index.sqlite
-```
+## 📊 Project Status
 
-Runtime state, tokens, logs, and the write-host lease stay under:
+The core MVP is substantially complete with automated tests. We are currently in the **Acceptance Testing** phase for real Obsidian environments.
 
-```text
-.obsidian/plugins/annotation-tutor/data/
-```
+For more details on features and roadmap, see [**`docs/project-status.md`**](docs/project-status.md).
 
-The service binds to `127.0.0.1`, uses separate admin and agent tokens, rejects
-browser-origin requests, and never stores model-provider credentials.
+---
+
+<p align="center">
+  Built with ❤️ for the Obsidian Community.
+</p>
