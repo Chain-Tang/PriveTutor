@@ -1,0 +1,58 @@
+.annotation-tutor-root {
+  --at-accent: var(--interactive-accent);
+  height: 100%;
+  overflow: auto;
+  padding: 16px;
+}
+
+.annotation-tutor-underline {
+  text-decoration: underline 2px var(--at-accent);
+  text-underline-offset: 3px;
+}
+
+.annotation-tutor-toolbar,
+.annotation-tutor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.annotation-tutor-list {
+  display: grid;
+  gap: 8px;
+}
+
+.annotation-tutor-card {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.annotation-tutor-muted {
+  color: var(--text-muted);
+}
+
+.annotation-tutor-root textarea,
+.annotation-tutor-root input,
+.annotation-tutor-root select {
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.annotation-tutor-block {
+  position: relative;
+}
+
+.annotation-tutor-block::before {
+  color: var(--at-accent);
+  content: "●";
+  font-size: 8px;
+  left: -14px;
+  position: absolute;
+  top: 0.45em;
+}
+
+.annotation-tutor-onboarding {
+  max-width: 620px;
+}

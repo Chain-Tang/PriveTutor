@@ -1,0 +1,33 @@
+{
+  "name": "annotation-tutor",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.33.2",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "build": "tsx scripts/build.ts",
+    "build:plugin": "tsx scripts/build.ts --plugin-only",
+    "check": "pnpm typecheck && pnpm test && pnpm build",
+    "dev:plugin": "tsx scripts/build.ts --plugin-only --watch",
+    "install:dev-plugin": "tsx scripts/install-dev-plugin.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@codemirror/state": "6.5.0",
+    "@codemirror/view": "6.38.6",
+    "@types/node": "^22.15.0",
+    "@types/mdast": "^4.0.4",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "esbuild": "^0.28.0",
+    "obsidian": "^1.13.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0",
+    "vitest": "^4.1.8"
+  }
+}

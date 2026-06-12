@@ -1,0 +1,19 @@
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.log
+.env
+.DS_Store
+
+# Development vault runtime data and installed build artifacts.
+Tutor/.obsidian/plugins/annotation-tutor/
+Tutor/Agent Context/
+Tutor/Learning Memory/
+Tutor/.codex/
+Tutor/.opencode/
+Tutor/opencode.json
+Tutor/AGENTS.md

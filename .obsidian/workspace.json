@@ -1,0 +1,229 @@
+{
+  "main": {
+    "id": "4fe445a707ddbaf4",
+    "type": "split",
+    "children": [
+      {
+        "id": "d7fe49a4cf861a8e",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "9465cd990df148fa",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "Tutor/Annotation Tutor Design Spec.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "Annotation Tutor Design Spec"
+            }
+          },
+          {
+            "id": "a04e28db4d5ee5bb",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "TutorLite/PrivTutor Lite MVP Design Spec.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "PrivTutor Lite MVP Design Spec"
+            }
+          },
+          {
+            "id": "966cf98750cdef0c",
+            "type": "leaf",
+            "state": {
+              "type": "graph",
+              "state": {},
+              "icon": "lucide-git-fork",
+              "title": "关系图谱"
+            }
+          }
+        ],
+        "currentTab": 2
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "12f41f1139fd3777",
+    "type": "split",
+    "children": [
+      {
+        "id": "65adb8c8d782a579",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "da3910772a270eb6",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "文件列表"
+            }
+          },
+          {
+            "id": "21d9c8995379cb01",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "搜索"
+            }
+          },
+          {
+            "id": "49326baed227ddbb",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "书签"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "5034201f6dc5baf1",
+    "type": "split",
+    "children": [
+      {
+        "id": "11bfd7733d64b283",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "1e69fe6f04c48282",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "TutorLite/PrivTutor Lite MVP Design Spec.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "PrivTutor Lite MVP Design Spec 的反向链接列表"
+            }
+          },
+          {
+            "id": "47e4f8cec3ac0e5b",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "TutorLite/PrivTutor Lite MVP Design Spec.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "PrivTutor Lite MVP Design Spec 的出链列表"
+            }
+          },
+          {
+            "id": "1344ac01354b4a4c",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "标签"
+            }
+          },
+          {
+            "id": "14c5d63f7d919da5",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "添加笔记属性"
+            }
+          },
+          {
+            "id": "5458e6450b3f2266",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "TutorLite/PrivTutor Lite MVP Design Spec.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "PrivTutor Lite MVP Design Spec 的大纲"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:打开快速切换": false,
+      "graph:查看关系图谱": false,
+      "canvas:新建白板": false,
+      "daily-notes:打开/创建今天的日记": false,
+      "templates:插入模板": false,
+      "command-palette:打开命令面板": false,
+      "bases:新建数据库": false
+    }
+  },
+  "active": "966cf98750cdef0c",
+  "lastOpenFiles": [
+    "TutorLite/PrivTutor Lite MVP Design Spec.md",
+    "TutorLite/scripts/install-dev-plugin.mjs.tmp.16768.4b390e4e1b4d",
+    "TutorLite/tests/index-table.test.ts.tmp.16768.d4fa61ed772b",
+    "TutorLite/tests/annotation-file.test.ts.tmp.16768.b50b726e92a3",
+    "TutorLite/tests/anchors.test.ts.tmp.16768.a590404b0a9d",
+    "TutorLite/tests/anchors.test.ts.tmp.16768.ad59852f01a4",
+    "TutorLite/src/main.ts.tmp.16768.9163c45b4344",
+    "TutorLite/src/main.ts.tmp.16768.a42af92a5e29",
+    "TutorLite/src/main.ts.tmp.16768.3da736bda713",
+    "TutorLite/src/markdown/annotation-file.ts.tmp.16768.a0892a50fdcb",
+    "TutorLite/src/anchors.ts.tmp.16768.fb32ba1cd5f6",
+    "未命名.md",
+    "TutorLite/README.md",
+    "CLAUDE.md",
+    "Tutor/Annotation Tutor Design Spec.md"
+  ]
+}

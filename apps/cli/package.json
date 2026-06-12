@@ -1,0 +1,19 @@
+{
+  "name": "annotation-tutor",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "annotation-tutor": "dist/index.js"
+  },
+  "dependencies": {
+    "@annotation-tutor/agent-bridges": "workspace:*",
+    "@annotation-tutor/core": "workspace:*",
+    "@annotation-tutor/domain": "workspace:*",
+    "@annotation-tutor/mcp": "workspace:*",
+    "@annotation-tutor/service": "workspace:*",
+    "@opencode-ai/sdk": "^1.16.2",
+    "commander": "^15.0.0",
+    "yaml": "^2.8.0"
+  }
+}
