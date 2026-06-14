@@ -274,7 +274,9 @@
   width: 224px;
   min-width: 150px;
   min-height: 64px;
-  max-height: 360px;
+  /* Grow with content (note + review + dialogue); only scroll past viewport
+     height so the reply box and later turns never get clipped. */
+  max-height: 80vh;
   padding: var(--size-4-2) var(--size-4-2) var(--size-2-3);
   pointer-events: auto;
   background: var(--background-primary);
@@ -283,7 +285,8 @@
   box-shadow: var(--shadow-s);
   font-size: var(--font-ui-small);
   resize: both;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   transition: box-shadow 150ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -492,6 +495,21 @@
   color: var(--text-muted);
 }
 
+/* Rendered-Markdown tutor turns: tighten block spacing so they read as a chat
+   bubble, not a document. */
+.atl-rail-md > :first-child {
+  margin-top: 0;
+}
+.atl-rail-md > :last-child {
+  margin-bottom: 0;
+}
+.atl-rail-md p,
+.atl-rail-md ul,
+.atl-rail-md ol,
+.atl-rail-md pre {
+  margin: var(--size-2-1) 0;
+}
+
 .atl-rail-turn--notice {
   align-self: flex-start;
   color: var(--text-faint);
@@ -520,6 +538,32 @@
 
 .atl-rail-reply-send {
   flex: none;
+}
+
+.atl-rail-dialogue-footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Quiet "save as memory cell" action under the dialogue. */
+.atl-rail-savecell {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--size-2-1);
+  padding: var(--size-2-1) var(--size-2-2);
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  cursor: pointer;
+}
+.atl-rail-savecell:hover {
+  color: var(--text-normal);
+}
+.atl-rail-savecell .svg-icon {
+  width: 14px;
+  height: 14px;
 }
 
 /* The tutor-proposed edit preview, shown inline in the thread. */

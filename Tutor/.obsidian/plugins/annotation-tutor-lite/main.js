@@ -7382,783 +7382,6 @@ function bareBlockId(anchor) {
   return anchor.replace(/^\^/, "");
 }
 
-// src/ids.ts
-function dateStamp(date6 = /* @__PURE__ */ new Date()) {
-  const year = date6.getFullYear();
-  const month = String(date6.getMonth() + 1).padStart(2, "0");
-  const day = String(date6.getDate()).padStart(2, "0");
-  return `${year}${month}${day}`;
-}
-function nextSequence(existingIds, prefix, stamp) {
-  const pattern = new RegExp(`^${prefix}-${stamp}-(\\d+)$`);
-  let max = 0;
-  for (const id of existingIds) {
-    const match = pattern.exec(id);
-    if (match) {
-      max = Math.max(max, Number(match[1]));
-    }
-  }
-  return max + 1;
-}
-function makeId(prefix, existingIds, date6 = /* @__PURE__ */ new Date()) {
-  const stamp = dateStamp(date6);
-  const sequence = nextSequence(existingIds, prefix, stamp);
-  return `${prefix}-${stamp}-${String(sequence).padStart(3, "0")}`;
-}
-function blockIdForAnnotation(annotationId) {
-  return annotationId.toLowerCase();
-}
-function nowIso(date6 = /* @__PURE__ */ new Date()) {
-  return date6.toISOString();
-}
-
-// src/anchors.ts
-var FUZZY_THRESHOLD = 0.45;
-function resolveAnchor(markdown, anchor) {
-  const lines = markdown.split(/\r?\n/);
-  if (anchor.blockId) {
-    const blockPattern = new RegExp(
-      `(?:^|\\s)\\^${escapeRegExp(anchor.blockId)}\\s*$`
-    );
-    const blockLine = lines.findIndex((line) => blockPattern.test(line));
-    if (blockLine >= 0) {
-      const lineStart = offsetOfLine(lines, blockLine);
-      const selectedStart = anchor.selectedText ? lines[blockLine]?.indexOf(anchor.selectedText) ?? -1 : -1;
-      return {
-        strategy: "block-id",
-        line: blockLine,
-        startOffset: selectedStart >= 0 ? lineStart + selectedStart : lineStart,
-        endOffset: selectedStart >= 0 ? lineStart + selectedStart + anchor.selectedText.length : lineStart + (lines[blockLine]?.length ?? 0),
-        confidence: 1,
-        requiresConfirmation: false
-      };
-    }
-  }
-  const exactOffset = anchor.selectedText ? markdown.indexOf(anchor.selectedText) : -1;
-  if (exactOffset >= 0) {
-    return {
-      strategy: "exact-text",
-      line: lineOfOffset(markdown, exactOffset),
-      startOffset: exactOffset,
-      endOffset: exactOffset + anchor.selectedText.length,
-      confidence: 0.95,
-      requiresConfirmation: false
-    };
-  }
-  let bestLine = -1;
-  let bestScore = 0;
-  if (anchor.selectedText) {
-    for (const [index, line] of lines.entries()) {
-      const score = similarity(
-        anchor.selectedText,
-        line.replace(/\s+\^[\w-]+\s*$/, "")
-      );
-      if (score > bestScore) {
-        bestScore = score;
-        bestLine = index;
-      }
-    }
-  }
-  if (bestLine >= 0 && bestScore >= FUZZY_THRESHOLD) {
-    return {
-      strategy: "fuzzy",
-      line: bestLine,
-      confidence: bestScore,
-      requiresConfirmation: true
-    };
-  }
-  return { strategy: "not-found", confidence: 0, requiresConfirmation: false };
-}
-function offsetOfLine(lines, lineIndex) {
-  let offset = 0;
-  for (let index = 0; index < lineIndex; index += 1) {
-    offset += (lines[index]?.length ?? 0) + 1;
-  }
-  return offset;
-}
-function lineOfOffset(markdown, offset) {
-  return markdown.slice(0, offset).split(/\r?\n/).length - 1;
-}
-function normalize(value) {
-  return value.toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
-}
-function similarity(left, right) {
-  const normalizedLeft = normalize(left);
-  const normalizedRight = normalize(right);
-  const length = Math.max(normalizedLeft.length, normalizedRight.length);
-  if (length === 0) return 1;
-  return 1 - levenshtein(normalizedLeft, normalizedRight) / length;
-}
-function levenshtein(left, right) {
-  const previous = Array.from({ length: right.length + 1 }, (_, index) => index);
-  for (let leftIndex = 1; leftIndex <= left.length; leftIndex += 1) {
-    const current2 = [leftIndex];
-    for (let rightIndex = 1; rightIndex <= right.length; rightIndex += 1) {
-      current2[rightIndex] = Math.min(
-        (current2[rightIndex - 1] ?? 0) + 1,
-        (previous[rightIndex] ?? 0) + 1,
-        (previous[rightIndex - 1] ?? 0) + (left[leftIndex - 1] === right[rightIndex - 1] ? 0 : 1)
-      );
-    }
-    previous.splice(0, previous.length, ...current2);
-  }
-  return previous[right.length] ?? 0;
-}
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-// src/editor.ts
-var BLOCK_ID_SUFFIX = /\s+\^([A-Za-z0-9_-]+)\s*$/;
-var HEADING = /^ {0,3}#{1,6}(?:\s|$)/;
-function isBlockBoundary(line) {
-  return HEADING.test(line);
-}
-function crossesMarkdownBlocks(editor, start, end) {
-  for (let line = start.line; line <= end.line; line += 1) {
-    if (line > start.line && line < end.line && editor.getLine(line).trim() === "") {
-      return true;
-    }
-  }
-  return false;
-}
-function findBlock(editor, line) {
-  if (isBlockBoundary(editor.getLine(line))) {
-    return { startLine: line, endLine: line };
-  }
-  let startLine = line;
-  let endLine = line;
-  while (startLine > 0 && editor.getLine(startLine - 1).trim() !== "" && !isBlockBoundary(editor.getLine(startLine - 1))) {
-    startLine -= 1;
-  }
-  while (endLine < editor.lineCount() - 1 && editor.getLine(endLine + 1).trim() !== "" && !isBlockBoundary(editor.getLine(endLine + 1))) {
-    endLine += 1;
-  }
-  return { startLine, endLine };
-}
-function findBlockInLines(lines, line) {
-  if (isBlockBoundary(lines[line] ?? "")) {
-    return { startLine: line, endLine: line };
-  }
-  let startLine = line;
-  let endLine = line;
-  while (startLine > 0 && (lines[startLine - 1] ?? "").trim() !== "" && !isBlockBoundary(lines[startLine - 1] ?? "")) {
-    startLine -= 1;
-  }
-  while (endLine < lines.length - 1 && (lines[endLine + 1] ?? "").trim() !== "" && !isBlockBoundary(lines[endLine + 1] ?? "")) {
-    endLine += 1;
-  }
-  return { startLine, endLine };
-}
-function detectBlockId(line) {
-  return BLOCK_ID_SUFFIX.exec(line)?.[1] ?? null;
-}
-function lineTextWithoutBlockId(line) {
-  return line.replace(BLOCK_ID_SUFFIX, "").trim();
-}
-function escapeRegExp2(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-// src/markdown/frontmatter.ts
-var import_yaml = __toESM(require_dist(), 1);
-function parseFrontmatter(markdown) {
-  const normalized = markdown.replace(/^\uFEFF/, "");
-  const match = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)([\s\S]*)$/.exec(
-    normalized
-  );
-  if (!match) return null;
-  try {
-    const data = (0, import_yaml.parse)(match[1] ?? "");
-    if (!data || typeof data !== "object" || Array.isArray(data)) return null;
-    return {
-      data,
-      body: match[2] ?? ""
-    };
-  } catch {
-    return null;
-  }
-}
-function renderFrontmatter(data, body) {
-  return `---
-${(0, import_yaml.stringify)(data, {
-    lineWidth: 0,
-    defaultStringType: "PLAIN",
-    defaultKeyType: "PLAIN"
-  }).trimEnd()}
----
-${body.trimStart().trimEnd()}
-`;
-}
-function wikiLink(path, label) {
-  return `[[${path}|${label}]]`;
-}
-function wikiLinkId(value) {
-  if (typeof value !== "string") return null;
-  const match = /^\[\[([^|\]]+)(?:\|([^\]]+))?\]\]$/.exec(value.trim());
-  if (!match) return value.trim() || null;
-  const label = match[2]?.trim();
-  if (label) return label;
-  const path = match[1] ?? "";
-  const file2 = path.split("/").pop() ?? path;
-  return file2.replace(/\.md$/i, "");
-}
-function wikiLinkIds(value) {
-  if (!Array.isArray(value)) return [];
-  return value.map(wikiLinkId).filter((item) => item !== null);
-}
-function stringArray(value) {
-  if (!Array.isArray(value)) return [];
-  return value.filter((item) => typeof item === "string");
-}
-function section(body, title) {
-  const lines = body.split(/\r?\n/);
-  const wanted = title.trim().toLowerCase();
-  let start = -1;
-  for (const [index, line] of lines.entries()) {
-    const heading = /^##\s+(.+?)\s*$/.exec(line);
-    if ((heading?.[1] ?? "").trim().toLowerCase() === wanted) {
-      start = index + 1;
-      break;
-    }
-  }
-  if (start < 0) return "";
-  let end = lines.length;
-  for (let index = start; index < lines.length; index += 1) {
-    if (/^##\s+/.test(lines[index] ?? "")) {
-      end = index;
-      break;
-    }
-  }
-  return lines.slice(start, end).join("\n").trim();
-}
-
-// src/markdown/blocks.ts
-var SENTINEL_RE = /<!--\s*annotation-tutor:([a-z][a-z-]*):(start|end)\s+([A-Za-z0-9_-]+)\s*-->/g;
-function startSentinel(kind, id) {
-  return `<!-- annotation-tutor:${kind}:start ${id} -->`;
-}
-function endSentinel(kind, id) {
-  return `<!-- annotation-tutor:${kind}:end ${id} -->`;
-}
-function extractBlocks(markdown, kind) {
-  const matches = [...markdown.matchAll(SENTINEL_RE)];
-  const blocks = [];
-  for (let i = 0; i < matches.length; i += 1) {
-    const open = matches[i];
-    if (!open || open[2] !== "start") continue;
-    const openKind = open[1];
-    const id = open[3];
-    if (kind && openKind !== kind) continue;
-    for (let j = i + 1; j < matches.length; j += 1) {
-      const close = matches[j];
-      if (!close) break;
-      if (close[2] === "end" && close[1] === openKind && close[3] === id) {
-        const startIndex = open.index;
-        const endIndex = close.index + close[0].length;
-        blocks.push({
-          kind: openKind ?? "",
-          id: id ?? "",
-          body: markdown.slice(open.index + open[0].length, close.index),
-          raw: markdown.slice(startIndex, endIndex),
-          startIndex,
-          endIndex
-        });
-        break;
-      }
-    }
-  }
-  return blocks;
-}
-function findBlock2(markdown, kind, id) {
-  return extractBlocks(markdown, kind).find((block) => block.id === id) ?? null;
-}
-function replaceBlock(markdown, block, replacement) {
-  return markdown.slice(0, block.startIndex) + replacement + markdown.slice(block.endIndex);
-}
-function splitSections(body) {
-  const lines = body.split(/\r?\n/);
-  const lead = [];
-  const sections = /* @__PURE__ */ new Map();
-  let title = null;
-  let current2 = [];
-  const flush = () => {
-    if (title !== null) sections.set(title, current2.join("\n").trim());
-  };
-  for (const line of lines) {
-    const heading = /^###\s+(.+?)\s*$/.exec(line);
-    if (heading) {
-      flush();
-      title = heading[1] ?? "";
-      current2 = [];
-    } else if (title === null) {
-      lead.push(line);
-    } else {
-      current2.push(line);
-    }
-  }
-  flush();
-  return { lead: lead.join("\n").trim(), sections };
-}
-function getSection(sections, title) {
-  const wanted = title.toLowerCase();
-  for (const [key, value] of sections) {
-    if (key.toLowerCase() === wanted) return value;
-  }
-  return "";
-}
-function parseMetadata(lead) {
-  const map2 = /* @__PURE__ */ new Map();
-  for (const line of lead.split(/\r?\n/)) {
-    const match = /^\s*-\s+([^:]+):\s*(.*)$/.exec(line);
-    if (match) {
-      const key = (match[1] ?? "").trim().toLowerCase();
-      if (!map2.has(key)) map2.set(key, (match[2] ?? "").trim());
-    }
-  }
-  return map2;
-}
-function stripCode(value) {
-  return value.trim().replace(/^`+|`+$/g, "").trim();
-}
-function parseList(value) {
-  const trimmed = value.trim();
-  if (!trimmed || /^none$/i.test(trimmed)) return [];
-  return trimmed.split(",").map((item) => item.trim()).filter(Boolean);
-}
-function toBlockquote(text) {
-  const trimmed = text.trim();
-  if (!trimmed) return ">";
-  return trimmed.split(/\r?\n/).map((line) => line.length > 0 ? `> ${line}` : ">").join("\n");
-}
-function fromBlockquote(text) {
-  return text.split(/\r?\n/).map((line) => line.replace(/^>\s?/, "")).join("\n").trim();
-}
-function truncate(text, max = 120) {
-  const oneLine2 = text.replace(/\s+/g, " ").trim();
-  return oneLine2.length > max ? `${oneLine2.slice(0, max - 1)}\u2026` : oneLine2;
-}
-
-// src/markdown/review.ts
-var PLACEHOLDER = "_No review yet._";
-var LABELS = {
-  correctness: "correctness",
-  summary: "summary",
-  comment: "summary",
-  strengths: "strengths",
-  strength: "strengths",
-  weaknesses: "weaknesses",
-  weakness: "weaknesses",
-  "missing concepts": "weaknesses",
-  "suggested revision": "suggestedRevision",
-  revision: "suggestedRevision",
-  "socratic question": "socraticQuestion",
-  question: "socraticQuestion",
-  source: "source",
-  reviewer: "source",
-  agent: "source"
-};
-function reviewPlaceholder() {
-  return PLACEHOLDER;
-}
-function isReviewPlaceholder(text) {
-  const trimmed = text.trim();
-  return trimmed === "" || /^_?\s*no review yet\.?\s*_?$/i.test(trimmed);
-}
-function parseAgentReview(sectionText, createdAt) {
-  if (isReviewPlaceholder(sectionText)) return null;
-  const { inline, lists } = scan(sectionText);
-  const correctness = normalizeCorrectness(inline.get("correctness"));
-  const summary = inline.get("summary") ?? firstParagraph(sectionText);
-  if (!correctness || !summary) return null;
-  return {
-    source: normalizeSource(inline.get("source")),
-    correctness,
-    summary,
-    strengths: listField(inline, lists, "strengths"),
-    weaknesses: listField(inline, lists, "weaknesses"),
-    suggestedRevision: inline.get("suggestedRevision") || void 0,
-    socraticQuestion: inline.get("socraticQuestion") || void 0,
-    createdAt
-  };
-}
-function scan(text) {
-  const inline = /* @__PURE__ */ new Map();
-  const lists = /* @__PURE__ */ new Map();
-  let current2 = null;
-  for (const raw of text.split(/\r?\n/)) {
-    const stripped = stripMarkers(raw);
-    const labelMatch = /^([A-Za-z][A-Za-z ]*?)\s*[:：]\s*(.*)$/.exec(stripped);
-    const labelKey = labelMatch ? LABELS[(labelMatch[1] ?? "").trim().toLowerCase()] : void 0;
-    if (labelMatch && labelKey) {
-      current2 = labelKey;
-      const value = (labelMatch[2] ?? "").trim();
-      if (value && !inline.has(labelKey)) inline.set(labelKey, value);
-      if (!lists.has(labelKey)) lists.set(labelKey, []);
-      continue;
-    }
-    const bullet = /^\s*[-*]\s+(.+)$/.exec(raw);
-    if (bullet && current2) {
-      lists.get(current2)?.push((bullet[1] ?? "").trim());
-      continue;
-    }
-    if (current2 && raw.trim()) {
-      const existing = inline.get(current2);
-      inline.set(
-        current2,
-        existing ? `${existing} ${raw.trim()}` : raw.trim()
-      );
-    }
-  }
-  return { inline, lists };
-}
-function listField(inline, lists, key) {
-  const items = lists.get(key);
-  if (items && items.length > 0) return items;
-  const value = inline.get(key);
-  if (value) {
-    return value.split(",").map((item) => item.trim()).filter(Boolean);
-  }
-  return [];
-}
-function stripMarkers(line) {
-  return line.replace(/^[\s>]*/, "").replace(/^#{1,6}\s*/, "").replace(/^[-*]\s+/, "").replace(/\*\*/g, "").replace(/__/g, "").trim();
-}
-function firstParagraph(text) {
-  for (const raw of text.split(/\r?\n/)) {
-    const stripped = stripMarkers(raw);
-    if (!stripped) continue;
-    const labelMatch = /^([A-Za-z][A-Za-z ]*?)\s*[:：]/.exec(stripped);
-    if (labelMatch && LABELS[(labelMatch[1] ?? "").trim().toLowerCase()]) {
-      continue;
-    }
-    return stripped;
-  }
-  return "";
-}
-function normalizeCorrectness(value) {
-  if (!value) return null;
-  const normalized = value.trim().toLowerCase().replace(/[\s-]+/g, "_");
-  const candidates = [
-    "correct",
-    "partially_correct",
-    "incorrect",
-    "uncertain"
-  ];
-  return candidates.find((candidate) => normalized.startsWith(candidate)) ?? null;
-}
-function normalizeSource(value) {
-  const normalized = value?.trim().toLowerCase() ?? "";
-  if (normalized.includes("opencode")) return "opencode";
-  if (normalized.includes("codex")) return "codex";
-  if (normalized.includes("claude")) return "claude-code";
-  if (normalized.includes("manual")) return "manual";
-  return "unknown";
-}
-
-// src/markdown/annotation-file.ts
-var DIALOGUE_LABEL = {
-  user: "You",
-  agent: "Tutor"
-};
-function serializeDialogue(turns) {
-  return turns.map((turn) => {
-    const label = DIALOGUE_LABEL[turn.role];
-    const head = turn.at ? `### ${label} \u2014 ${turn.at}` : `### ${label}`;
-    return `${head}
-
-${toBlockquote(turn.text)}`;
-  }).join("\n\n");
-}
-function parseDialogue(sectionBody) {
-  if (!sectionBody.trim()) return [];
-  const lines = sectionBody.split(/\r?\n/);
-  const turns = [];
-  let role = null;
-  let at = "";
-  let buffer = [];
-  const flush = () => {
-    if (role !== null) {
-      const text = fromBlockquote(buffer.join("\n"));
-      if (text) turns.push({ role, text, at });
-    }
-    buffer = [];
-  };
-  for (const line of lines) {
-    const heading = /^###\s+(.+?)\s*$/.exec(line);
-    if (heading) {
-      flush();
-      const title = heading[1] ?? "";
-      const parts = title.split(" \u2014 ");
-      const label = (parts[0] ?? "").trim().toLowerCase();
-      at = parts.length > 1 ? parts.slice(1).join(" \u2014 ").trim() : "";
-      role = label.startsWith("you") || label.startsWith("user") ? "user" : "agent";
-    } else {
-      buffer.push(line);
-    }
-  }
-  flush();
-  return turns;
-}
-function serializeAnnotation(annotation, memoryRoot = "Agent Memory") {
-  const reviewBody = annotation.reviewText && annotation.reviewText.trim() ? annotation.reviewText.trim() : reviewPlaceholder();
-  const historyBody = annotation.reviewHistory?.trim() ?? "";
-  const dialogueBody = annotation.dialogue && annotation.dialogue.length > 0 ? serializeDialogue(annotation.dialogue) : "";
-  const body = [
-    `# ${annotation.id}`,
-    `## Selected Text
-
-${toBlockquote(annotation.anchor.selectedText)}`,
-    `## User Note
-
-${toBlockquote(annotation.userNote)}`,
-    `## Agent Review
-
-${reviewBody}`,
-    historyBody ? `## Review History
-
-${historyBody}` : "## Review History",
-    ...dialogueBody ? [`## Dialogue
-
-${dialogueBody}`] : []
-  ].join("\n\n");
-  return renderFrontmatter(
-    {
-      schema: 2,
-      kind: "annotation",
-      id: annotation.id,
-      source_file: annotation.sourceFile,
-      block_id: caretId(annotation.anchor.blockId),
-      anchor_origin: annotation.anchorOrigin ?? "generated",
-      status: annotation.status,
-      concepts: annotation.concepts,
-      related_cells: annotation.relatedMemoryCells.map(
-        (id) => wikiLink(`${memoryRoot}/memory-cells/${id}`, id)
-      ),
-      created_at: annotation.createdAt,
-      updated_at: annotation.updatedAt
-    },
-    body
-  );
-}
-function parseAnnotationFile(markdown) {
-  const document2 = parseFrontmatter(markdown);
-  if (document2) return parseV2Annotation(document2);
-  return parseLegacyAnnotation(markdown);
-}
-function parseV2Annotation(document2) {
-  if (document2.data.schema !== 2 || document2.data.kind !== "annotation") {
-    return null;
-  }
-  const id = typeof document2.data.id === "string" ? document2.data.id : "";
-  const sourceFile = typeof document2.data.source_file === "string" ? document2.data.source_file : "";
-  const blockId = typeof document2.data.block_id === "string" ? bareBlockId(document2.data.block_id) : "";
-  const createdAt = typeof document2.data.created_at === "string" ? document2.data.created_at : "";
-  const updatedAt = typeof document2.data.updated_at === "string" ? document2.data.updated_at : createdAt;
-  if (!id || !sourceFile || !blockId || !createdAt) return null;
-  const reviewSection = section(document2.body, "Agent Review");
-  const reviewText = isReviewPlaceholder(reviewSection) ? void 0 : reviewSection.trim();
-  const reviewHistory = section(document2.body, "Review History").trim() || void 0;
-  const review = reviewText ? parseAgentReview(reviewText, updatedAt) ?? void 0 : void 0;
-  const dialogue = parseDialogue(section(document2.body, "Dialogue"));
-  const origin = document2.data.anchor_origin;
-  return {
-    id,
-    sourceFile,
-    anchor: {
-      blockId,
-      selectedText: fromBlockquote(section(document2.body, "Selected Text"))
-    },
-    anchorOrigin: origin === "generated" || origin === "existing" || origin === "legacy" ? origin : "legacy",
-    userNote: fromBlockquote(section(document2.body, "User Note")),
-    status: deriveStatus(
-      normalizeStatus(
-        typeof document2.data.status === "string" ? document2.data.status : void 0
-      ),
-      reviewText !== void 0,
-      review !== void 0
-    ),
-    concepts: stringArray(document2.data.concepts),
-    relatedMemoryCells: wikiLinkIds(document2.data.related_cells),
-    review,
-    reviewText,
-    reviewHistory,
-    ...dialogue.length > 0 ? { dialogue } : {},
-    createdAt,
-    updatedAt
-  };
-}
-function parseLegacyAnnotation(markdown) {
-  const block = extractBlocks(markdown, "annotation")[0];
-  if (!block) return null;
-  const { lead, sections } = splitSections(block.body);
-  const meta3 = parseMetadata(lead);
-  const anchorValue = stripCode(meta3.get("anchor") ?? "");
-  const createdAt = meta3.get("created at") ?? "";
-  const updatedAt = meta3.get("updated at") ?? createdAt;
-  const selectedText = fromBlockquote(getSection(sections, "Selected Text"));
-  const reviewSection = getSection(sections, "Agent Review");
-  const historySection = getSection(sections, "Review History");
-  const reviewText = isReviewPlaceholder(reviewSection) ? void 0 : reviewSection.trim();
-  const reviewHistory = historySection.trim() ? historySection.trim() : void 0;
-  const review = reviewText ? parseAgentReview(reviewText, updatedAt) ?? void 0 : void 0;
-  const storedStatus = normalizeStatus(meta3.get("status"));
-  return {
-    id: block.id,
-    sourceFile: stripCode(meta3.get("source file") ?? ""),
-    anchor: {
-      blockId: bareBlockId(anchorValue),
-      selectedText
-    },
-    anchorOrigin: "legacy",
-    userNote: fromBlockquote(getSection(sections, "User Note")),
-    status: deriveStatus(storedStatus, reviewText !== void 0, review !== void 0),
-    concepts: parseList(meta3.get("concepts") ?? ""),
-    relatedMemoryCells: parseList(meta3.get("related memory cells") ?? ""),
-    review,
-    reviewText,
-    reviewHistory,
-    createdAt,
-    updatedAt
-  };
-}
-function updateAnnotationMarkdown(currentMarkdown, patch, memoryRoot = "Agent Memory") {
-  const existing = parseAnnotationFile(currentMarkdown);
-  if (!existing) return null;
-  const updated = {
-    ...existing,
-    userNote: patch.userNote ?? existing.userNote,
-    status: patch.status ?? existing.status,
-    concepts: patch.concepts ?? existing.concepts,
-    relatedMemoryCells: patch.relatedMemoryCells ?? existing.relatedMemoryCells,
-    anchor: patch.anchor ? { ...existing.anchor, ...patch.anchor } : existing.anchor,
-    dialogue: patch.dialogue ?? existing.dialogue,
-    updatedAt: patch.updatedAt ?? (/* @__PURE__ */ new Date()).toISOString()
-  };
-  return serializeAnnotation(updated, memoryRoot);
-}
-function normalizeStatus(value) {
-  const normalized = value?.trim().toLowerCase();
-  return annotationStatuses.find((status) => status === normalized) ?? "saved";
-}
-function deriveStatus(stored, hasReviewText, hasStructuredReview) {
-  if (stored === "archived" || stored === "source_missing") return stored;
-  if (hasReviewText) {
-    return hasStructuredReview ? "reviewed" : "reviewed_unstructured";
-  }
-  return stored;
-}
-
-// src/index-table.ts
-function recordFromAnnotation(annotation, memoryFile) {
-  const reviewSummary = annotation.review?.summary ? truncate(annotation.review.summary) : annotation.reviewText ? truncate(annotation.reviewText) : void 0;
-  return {
-    annotationId: annotation.id,
-    memoryFile,
-    sourceFile: annotation.sourceFile,
-    anchor: caretId(annotation.anchor.blockId),
-    anchorOrigin: annotation.anchorOrigin ?? "legacy",
-    selectedText: annotation.anchor.selectedText,
-    status: annotation.status,
-    concepts: annotation.concepts,
-    relatedMemoryCells: annotation.relatedMemoryCells,
-    reviewSummary,
-    reviewText: annotation.reviewText,
-    userNoteSummary: annotation.userNote ? truncate(annotation.userNote) : void 0,
-    userNote: annotation.userNote,
-    ...annotation.dialogue && annotation.dialogue.length > 0 ? { dialogue: annotation.dialogue } : {},
-    createdAt: annotation.createdAt,
-    updatedAt: annotation.updatedAt
-  };
-}
-function hasReview(status) {
-  return status === "reviewed" || status === "reviewed_unstructured";
-}
-var IndexTable = class _IndexTable {
-  records = /* @__PURE__ */ new Map();
-  constructor(records = []) {
-    this.replaceAll(records);
-  }
-  static fromJson(text) {
-    try {
-      const parsed = JSON.parse(text);
-      const rows = Array.isArray(parsed.records) ? parsed.records : [];
-      return new _IndexTable(rows.filter(isRecord));
-    } catch {
-      return new _IndexTable();
-    }
-  }
-  toJson() {
-    const file2 = { version: 1, records: this.all() };
-    return `${JSON.stringify(file2, null, 2)}
-`;
-  }
-  all() {
-    return [...this.records.values()];
-  }
-  ids() {
-    return [...this.records.keys()];
-  }
-  get(annotationId) {
-    return this.records.get(annotationId);
-  }
-  upsert(record2) {
-    this.records.set(record2.annotationId, record2);
-  }
-  remove(annotationId) {
-    this.records.delete(annotationId);
-  }
-  replaceAll(records) {
-    this.records.clear();
-    for (const record2 of records) this.records.set(record2.annotationId, record2);
-  }
-  sources() {
-    return [...new Set(this.all().map((record2) => record2.sourceFile))].sort();
-  }
-  concepts() {
-    return [
-      ...new Set(this.all().flatMap((record2) => record2.concepts))
-    ].sort();
-  }
-  query(filter = {}) {
-    const text = filter.text?.toLowerCase().trim();
-    const cutoff = filter.withinDays ? Date.now() - filter.withinDays * 864e5 : void 0;
-    return this.all().filter((record2) => {
-      if (text) {
-        const haystack = [
-          record2.annotationId,
-          record2.sourceFile,
-          record2.userNoteSummary ?? "",
-          record2.reviewSummary ?? "",
-          ...record2.concepts
-        ].join(" ").toLowerCase();
-        if (!haystack.includes(text)) return false;
-      }
-      if (filter.status && record2.status !== filter.status) return false;
-      if (filter.sourceFile && record2.sourceFile !== filter.sourceFile) {
-        return false;
-      }
-      if (filter.concept && !record2.concepts.includes(filter.concept)) {
-        return false;
-      }
-      if (filter.reviewState === "reviewed" && !hasReview(record2.status)) {
-        return false;
-      }
-      if (filter.reviewState === "unreviewed" && hasReview(record2.status)) {
-        return false;
-      }
-      if (cutoff !== void 0) {
-        const created = Date.parse(record2.createdAt);
-        if (Number.isFinite(created) && created < cutoff) return false;
-      }
-      return true;
-    }).sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
-  }
-};
-function isRecord(value) {
-  return typeof value === "object" && value !== null && typeof value.annotationId === "string";
-}
-
 // node_modules/.pnpm/zod@4.4.3/node_modules/zod/v4/classic/external.js
 var external_exports = {};
 __export(external_exports, {
@@ -8342,7 +7565,7 @@ __export(external_exports, {
   object: () => object,
   optional: () => optional,
   overwrite: () => _overwrite,
-  parse: () => parse3,
+  parse: () => parse2,
   parseAsync: () => parseAsync2,
   partialRecord: () => partialRecord,
   pipe: () => pipe,
@@ -8662,7 +7885,7 @@ __export(core_exports2, {
   isValidJWT: () => isValidJWT,
   locales: () => locales_exports,
   meta: () => meta,
-  parse: () => parse2,
+  parse: () => parse,
   parseAsync: () => parseAsync,
   prettifyError: () => prettifyError,
   process: () => process2,
@@ -9607,7 +8830,7 @@ var _parse = (_Err) => (schema, value, _ctx, _params) => {
   }
   return result.value;
 };
-var parse2 = /* @__PURE__ */ _parse($ZodRealError);
+var parse = /* @__PURE__ */ _parse($ZodRealError);
 var _parseAsync = (_Err) => async (schema, value, _ctx, params) => {
   const ctx = _ctx ? { ..._ctx, async: true } : { async: true };
   let result = schema._zod.run({ value, issues: [] }, ctx);
@@ -12399,10 +11622,10 @@ var $ZodFunction = /* @__PURE__ */ $constructor("$ZodFunction", (inst, def) => {
       throw new Error("implement() must be called with a function");
     }
     return function(...args) {
-      const parsedArgs = inst._def.input ? parse2(inst._def.input, args) : args;
+      const parsedArgs = inst._def.input ? parse(inst._def.input, args) : args;
       const result = Reflect.apply(func, this, parsedArgs);
       if (inst._def.output) {
-        return parse2(inst._def.output, result);
+        return parse(inst._def.output, result);
       }
       return result;
     };
@@ -20836,7 +20059,7 @@ var ZodRealError = /* @__PURE__ */ $constructor("ZodError", initializer2, {
 });
 
 // node_modules/.pnpm/zod@4.4.3/node_modules/zod/v4/classic/parse.js
-var parse3 = /* @__PURE__ */ _parse(ZodRealError);
+var parse2 = /* @__PURE__ */ _parse(ZodRealError);
 var parseAsync2 = /* @__PURE__ */ _parseAsync(ZodRealError);
 var safeParse2 = /* @__PURE__ */ _safeParse(ZodRealError);
 var safeParseAsync2 = /* @__PURE__ */ _safeParseAsync(ZodRealError);
@@ -20899,7 +20122,7 @@ var ZodType = /* @__PURE__ */ $constructor("ZodType", (inst, def) => {
   inst.def = def;
   inst.type = def.type;
   Object.defineProperty(inst, "_def", { value: def });
-  inst.parse = (data, params) => parse3(inst, data, params, { callee: inst.parse });
+  inst.parse = (data, params) => parse2(inst, data, params, { callee: inst.parse });
   inst.safeParse = (data, params) => safeParse2(inst, data, params);
   inst.parseAsync = async (data, params) => parseAsync2(inst, data, params, { callee: inst.parseAsync });
   inst.safeParseAsync = async (data, params) => safeParseAsync2(inst, data, params);
@@ -22779,7 +22002,817 @@ var proposalSchema = external_exports.object({
   resolvedAt: isoDateSchema.optional()
 });
 
+// src/ids.ts
+function dateStamp(date6 = /* @__PURE__ */ new Date()) {
+  const year = date6.getFullYear();
+  const month = String(date6.getMonth() + 1).padStart(2, "0");
+  const day = String(date6.getDate()).padStart(2, "0");
+  return `${year}${month}${day}`;
+}
+function nextSequence(existingIds, prefix, stamp) {
+  const pattern = new RegExp(`^${prefix}-${stamp}-(\\d+)$`);
+  let max = 0;
+  for (const id of existingIds) {
+    const match = pattern.exec(id);
+    if (match) {
+      max = Math.max(max, Number(match[1]));
+    }
+  }
+  return max + 1;
+}
+function makeId(prefix, existingIds, date6 = /* @__PURE__ */ new Date()) {
+  const stamp = dateStamp(date6);
+  const sequence = nextSequence(existingIds, prefix, stamp);
+  return `${prefix}-${stamp}-${String(sequence).padStart(3, "0")}`;
+}
+function blockIdForAnnotation(annotationId) {
+  return annotationId.toLowerCase();
+}
+function nowIso(date6 = /* @__PURE__ */ new Date()) {
+  return date6.toISOString();
+}
+
+// src/anchors.ts
+var FUZZY_THRESHOLD = 0.45;
+function resolveAnchor(markdown, anchor) {
+  const lines = markdown.split(/\r?\n/);
+  if (anchor.blockId) {
+    const blockPattern = new RegExp(
+      `(?:^|\\s)\\^${escapeRegExp(anchor.blockId)}\\s*$`
+    );
+    const blockLine = lines.findIndex((line) => blockPattern.test(line));
+    if (blockLine >= 0) {
+      const lineStart = offsetOfLine(lines, blockLine);
+      const selectedStart = anchor.selectedText ? lines[blockLine]?.indexOf(anchor.selectedText) ?? -1 : -1;
+      return {
+        strategy: "block-id",
+        line: blockLine,
+        startOffset: selectedStart >= 0 ? lineStart + selectedStart : lineStart,
+        endOffset: selectedStart >= 0 ? lineStart + selectedStart + anchor.selectedText.length : lineStart + (lines[blockLine]?.length ?? 0),
+        confidence: 1,
+        requiresConfirmation: false
+      };
+    }
+  }
+  const exactOffset = anchor.selectedText ? markdown.indexOf(anchor.selectedText) : -1;
+  if (exactOffset >= 0) {
+    return {
+      strategy: "exact-text",
+      line: lineOfOffset(markdown, exactOffset),
+      startOffset: exactOffset,
+      endOffset: exactOffset + anchor.selectedText.length,
+      confidence: 0.95,
+      requiresConfirmation: false
+    };
+  }
+  let bestLine = -1;
+  let bestScore = 0;
+  if (anchor.selectedText) {
+    for (const [index, line] of lines.entries()) {
+      const score = similarity(
+        anchor.selectedText,
+        line.replace(/\s+\^[\w-]+\s*$/, "")
+      );
+      if (score > bestScore) {
+        bestScore = score;
+        bestLine = index;
+      }
+    }
+  }
+  if (bestLine >= 0 && bestScore >= FUZZY_THRESHOLD) {
+    return {
+      strategy: "fuzzy",
+      line: bestLine,
+      confidence: bestScore,
+      requiresConfirmation: true
+    };
+  }
+  return { strategy: "not-found", confidence: 0, requiresConfirmation: false };
+}
+function offsetOfLine(lines, lineIndex) {
+  let offset = 0;
+  for (let index = 0; index < lineIndex; index += 1) {
+    offset += (lines[index]?.length ?? 0) + 1;
+  }
+  return offset;
+}
+function lineOfOffset(markdown, offset) {
+  return markdown.slice(0, offset).split(/\r?\n/).length - 1;
+}
+function normalize(value) {
+  return value.toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+}
+function similarity(left, right) {
+  const normalizedLeft = normalize(left);
+  const normalizedRight = normalize(right);
+  const length = Math.max(normalizedLeft.length, normalizedRight.length);
+  if (length === 0) return 1;
+  return 1 - levenshtein(normalizedLeft, normalizedRight) / length;
+}
+function levenshtein(left, right) {
+  const previous = Array.from({ length: right.length + 1 }, (_, index) => index);
+  for (let leftIndex = 1; leftIndex <= left.length; leftIndex += 1) {
+    const current2 = [leftIndex];
+    for (let rightIndex = 1; rightIndex <= right.length; rightIndex += 1) {
+      current2[rightIndex] = Math.min(
+        (current2[rightIndex - 1] ?? 0) + 1,
+        (previous[rightIndex] ?? 0) + 1,
+        (previous[rightIndex - 1] ?? 0) + (left[leftIndex - 1] === right[rightIndex - 1] ? 0 : 1)
+      );
+    }
+    previous.splice(0, previous.length, ...current2);
+  }
+  return previous[right.length] ?? 0;
+}
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// src/editor.ts
+var BLOCK_ID_SUFFIX = /\s+\^([A-Za-z0-9_-]+)\s*$/;
+var HEADING = /^ {0,3}#{1,6}(?:\s|$)/;
+function isBlockBoundary(line) {
+  return HEADING.test(line);
+}
+function crossesMarkdownBlocks(editor, start, end) {
+  for (let line = start.line; line <= end.line; line += 1) {
+    if (line > start.line && line < end.line && editor.getLine(line).trim() === "") {
+      return true;
+    }
+  }
+  return false;
+}
+function findBlock(editor, line) {
+  if (isBlockBoundary(editor.getLine(line))) {
+    return { startLine: line, endLine: line };
+  }
+  let startLine = line;
+  let endLine = line;
+  while (startLine > 0 && editor.getLine(startLine - 1).trim() !== "" && !isBlockBoundary(editor.getLine(startLine - 1))) {
+    startLine -= 1;
+  }
+  while (endLine < editor.lineCount() - 1 && editor.getLine(endLine + 1).trim() !== "" && !isBlockBoundary(editor.getLine(endLine + 1))) {
+    endLine += 1;
+  }
+  return { startLine, endLine };
+}
+function findBlockInLines(lines, line) {
+  if (isBlockBoundary(lines[line] ?? "")) {
+    return { startLine: line, endLine: line };
+  }
+  let startLine = line;
+  let endLine = line;
+  while (startLine > 0 && (lines[startLine - 1] ?? "").trim() !== "" && !isBlockBoundary(lines[startLine - 1] ?? "")) {
+    startLine -= 1;
+  }
+  while (endLine < lines.length - 1 && (lines[endLine + 1] ?? "").trim() !== "" && !isBlockBoundary(lines[endLine + 1] ?? "")) {
+    endLine += 1;
+  }
+  return { startLine, endLine };
+}
+function detectBlockId(line) {
+  return BLOCK_ID_SUFFIX.exec(line)?.[1] ?? null;
+}
+function lineTextWithoutBlockId(line) {
+  return line.replace(BLOCK_ID_SUFFIX, "").trim();
+}
+function escapeRegExp2(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// src/markdown/frontmatter.ts
+var import_yaml = __toESM(require_dist(), 1);
+function parseFrontmatter(markdown) {
+  const normalized = markdown.replace(/^\uFEFF/, "");
+  const match = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)([\s\S]*)$/.exec(
+    normalized
+  );
+  if (!match) return null;
+  try {
+    const data = (0, import_yaml.parse)(match[1] ?? "");
+    if (!data || typeof data !== "object" || Array.isArray(data)) return null;
+    return {
+      data,
+      body: match[2] ?? ""
+    };
+  } catch {
+    return null;
+  }
+}
+function renderFrontmatter(data, body) {
+  return `---
+${(0, import_yaml.stringify)(data, {
+    lineWidth: 0,
+    defaultStringType: "PLAIN",
+    defaultKeyType: "PLAIN"
+  }).trimEnd()}
+---
+${body.trimStart().trimEnd()}
+`;
+}
+function wikiLink(path, label) {
+  return `[[${path}|${label}]]`;
+}
+function wikiLinkId(value) {
+  if (typeof value !== "string") return null;
+  const match = /^\[\[([^|\]]+)(?:\|([^\]]+))?\]\]$/.exec(value.trim());
+  if (!match) return value.trim() || null;
+  const label = match[2]?.trim();
+  if (label) return label;
+  const path = match[1] ?? "";
+  const file2 = path.split("/").pop() ?? path;
+  return file2.replace(/\.md$/i, "");
+}
+function wikiLinkIds(value) {
+  if (!Array.isArray(value)) return [];
+  return value.map(wikiLinkId).filter((item) => item !== null);
+}
+function stringArray(value) {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item) => typeof item === "string");
+}
+function section(body, title) {
+  const lines = body.split(/\r?\n/);
+  const wanted = title.trim().toLowerCase();
+  let start = -1;
+  for (const [index, line] of lines.entries()) {
+    const heading = /^##\s+(.+?)\s*$/.exec(line);
+    if ((heading?.[1] ?? "").trim().toLowerCase() === wanted) {
+      start = index + 1;
+      break;
+    }
+  }
+  if (start < 0) return "";
+  let end = lines.length;
+  for (let index = start; index < lines.length; index += 1) {
+    if (/^##\s+/.test(lines[index] ?? "")) {
+      end = index;
+      break;
+    }
+  }
+  return lines.slice(start, end).join("\n").trim();
+}
+
+// src/markdown/blocks.ts
+var SENTINEL_RE = /<!--\s*annotation-tutor:([a-z][a-z-]*):(start|end)\s+([A-Za-z0-9_-]+)\s*-->/g;
+function startSentinel(kind, id) {
+  return `<!-- annotation-tutor:${kind}:start ${id} -->`;
+}
+function endSentinel(kind, id) {
+  return `<!-- annotation-tutor:${kind}:end ${id} -->`;
+}
+function extractBlocks(markdown, kind) {
+  const matches = [...markdown.matchAll(SENTINEL_RE)];
+  const blocks = [];
+  for (let i = 0; i < matches.length; i += 1) {
+    const open = matches[i];
+    if (!open || open[2] !== "start") continue;
+    const openKind = open[1];
+    const id = open[3];
+    if (kind && openKind !== kind) continue;
+    for (let j = i + 1; j < matches.length; j += 1) {
+      const close = matches[j];
+      if (!close) break;
+      if (close[2] === "end" && close[1] === openKind && close[3] === id) {
+        const startIndex = open.index;
+        const endIndex = close.index + close[0].length;
+        blocks.push({
+          kind: openKind ?? "",
+          id: id ?? "",
+          body: markdown.slice(open.index + open[0].length, close.index),
+          raw: markdown.slice(startIndex, endIndex),
+          startIndex,
+          endIndex
+        });
+        break;
+      }
+    }
+  }
+  return blocks;
+}
+function findBlock2(markdown, kind, id) {
+  return extractBlocks(markdown, kind).find((block) => block.id === id) ?? null;
+}
+function replaceBlock(markdown, block, replacement) {
+  return markdown.slice(0, block.startIndex) + replacement + markdown.slice(block.endIndex);
+}
+function splitSections(body) {
+  const lines = body.split(/\r?\n/);
+  const lead = [];
+  const sections = /* @__PURE__ */ new Map();
+  let title = null;
+  let current2 = [];
+  const flush = () => {
+    if (title !== null) sections.set(title, current2.join("\n").trim());
+  };
+  for (const line of lines) {
+    const heading = /^###\s+(.+?)\s*$/.exec(line);
+    if (heading) {
+      flush();
+      title = heading[1] ?? "";
+      current2 = [];
+    } else if (title === null) {
+      lead.push(line);
+    } else {
+      current2.push(line);
+    }
+  }
+  flush();
+  return { lead: lead.join("\n").trim(), sections };
+}
+function getSection(sections, title) {
+  const wanted = title.toLowerCase();
+  for (const [key, value] of sections) {
+    if (key.toLowerCase() === wanted) return value;
+  }
+  return "";
+}
+function parseMetadata(lead) {
+  const map2 = /* @__PURE__ */ new Map();
+  for (const line of lead.split(/\r?\n/)) {
+    const match = /^\s*-\s+([^:]+):\s*(.*)$/.exec(line);
+    if (match) {
+      const key = (match[1] ?? "").trim().toLowerCase();
+      if (!map2.has(key)) map2.set(key, (match[2] ?? "").trim());
+    }
+  }
+  return map2;
+}
+function stripCode(value) {
+  return value.trim().replace(/^`+|`+$/g, "").trim();
+}
+function parseList(value) {
+  const trimmed = value.trim();
+  if (!trimmed || /^none$/i.test(trimmed)) return [];
+  return trimmed.split(",").map((item) => item.trim()).filter(Boolean);
+}
+function toBlockquote(text) {
+  const trimmed = text.trim();
+  if (!trimmed) return ">";
+  return trimmed.split(/\r?\n/).map((line) => line.length > 0 ? `> ${line}` : ">").join("\n");
+}
+function fromBlockquote(text) {
+  return text.split(/\r?\n/).map((line) => line.replace(/^>\s?/, "")).join("\n").trim();
+}
+function truncate(text, max = 120) {
+  const oneLine2 = text.replace(/\s+/g, " ").trim();
+  return oneLine2.length > max ? `${oneLine2.slice(0, max - 1)}\u2026` : oneLine2;
+}
+
+// src/markdown/review.ts
+var PLACEHOLDER = "_No review yet._";
+var LABELS = {
+  correctness: "correctness",
+  summary: "summary",
+  comment: "summary",
+  strengths: "strengths",
+  strength: "strengths",
+  weaknesses: "weaknesses",
+  weakness: "weaknesses",
+  "missing concepts": "weaknesses",
+  "suggested revision": "suggestedRevision",
+  revision: "suggestedRevision",
+  "socratic question": "socraticQuestion",
+  question: "socraticQuestion",
+  source: "source",
+  reviewer: "source",
+  agent: "source"
+};
+function reviewPlaceholder() {
+  return PLACEHOLDER;
+}
+function isReviewPlaceholder(text) {
+  const trimmed = text.trim();
+  return trimmed === "" || /^_?\s*no review yet\.?\s*_?$/i.test(trimmed);
+}
+function parseAgentReview(sectionText, createdAt) {
+  if (isReviewPlaceholder(sectionText)) return null;
+  const { inline, lists } = scan(sectionText);
+  const correctness = normalizeCorrectness(inline.get("correctness"));
+  const summary = inline.get("summary") ?? firstParagraph(sectionText);
+  if (!correctness || !summary) return null;
+  return {
+    source: normalizeSource(inline.get("source")),
+    correctness,
+    summary,
+    strengths: listField(inline, lists, "strengths"),
+    weaknesses: listField(inline, lists, "weaknesses"),
+    suggestedRevision: inline.get("suggestedRevision") || void 0,
+    socraticQuestion: inline.get("socraticQuestion") || void 0,
+    createdAt
+  };
+}
+function scan(text) {
+  const inline = /* @__PURE__ */ new Map();
+  const lists = /* @__PURE__ */ new Map();
+  let current2 = null;
+  for (const raw of text.split(/\r?\n/)) {
+    const stripped = stripMarkers(raw);
+    const labelMatch = /^([A-Za-z][A-Za-z ]*?)\s*[:：]\s*(.*)$/.exec(stripped);
+    const labelKey = labelMatch ? LABELS[(labelMatch[1] ?? "").trim().toLowerCase()] : void 0;
+    if (labelMatch && labelKey) {
+      current2 = labelKey;
+      const value = (labelMatch[2] ?? "").trim();
+      if (value && !inline.has(labelKey)) inline.set(labelKey, value);
+      if (!lists.has(labelKey)) lists.set(labelKey, []);
+      continue;
+    }
+    const bullet = /^\s*[-*]\s+(.+)$/.exec(raw);
+    if (bullet && current2) {
+      lists.get(current2)?.push((bullet[1] ?? "").trim());
+      continue;
+    }
+    if (current2 && raw.trim()) {
+      const existing = inline.get(current2);
+      inline.set(
+        current2,
+        existing ? `${existing} ${raw.trim()}` : raw.trim()
+      );
+    }
+  }
+  return { inline, lists };
+}
+function listField(inline, lists, key) {
+  const items = lists.get(key);
+  if (items && items.length > 0) return items;
+  const value = inline.get(key);
+  if (value) {
+    return value.split(",").map((item) => item.trim()).filter(Boolean);
+  }
+  return [];
+}
+function stripMarkers(line) {
+  return line.replace(/^[\s>]*/, "").replace(/^#{1,6}\s*/, "").replace(/^[-*]\s+/, "").replace(/\*\*/g, "").replace(/__/g, "").trim();
+}
+function firstParagraph(text) {
+  for (const raw of text.split(/\r?\n/)) {
+    const stripped = stripMarkers(raw);
+    if (!stripped) continue;
+    const labelMatch = /^([A-Za-z][A-Za-z ]*?)\s*[:：]/.exec(stripped);
+    if (labelMatch && LABELS[(labelMatch[1] ?? "").trim().toLowerCase()]) {
+      continue;
+    }
+    return stripped;
+  }
+  return "";
+}
+function normalizeCorrectness(value) {
+  if (!value) return null;
+  const normalized = value.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  const candidates = [
+    "correct",
+    "partially_correct",
+    "incorrect",
+    "uncertain"
+  ];
+  return candidates.find((candidate) => normalized.startsWith(candidate)) ?? null;
+}
+function normalizeSource(value) {
+  const normalized = value?.trim().toLowerCase() ?? "";
+  if (normalized.includes("opencode")) return "opencode";
+  if (normalized.includes("codex")) return "codex";
+  if (normalized.includes("claude")) return "claude-code";
+  if (normalized.includes("manual")) return "manual";
+  return "unknown";
+}
+
+// src/markdown/annotation-file.ts
+var DIALOGUE_LABEL = {
+  user: "You",
+  agent: "Tutor"
+};
+function serializeDialogue(turns) {
+  return turns.map((turn) => {
+    const label = DIALOGUE_LABEL[turn.role];
+    const head = turn.at ? `### ${label} \u2014 ${turn.at}` : `### ${label}`;
+    return `${head}
+
+${toBlockquote(turn.text)}`;
+  }).join("\n\n");
+}
+function parseDialogue(sectionBody) {
+  if (!sectionBody.trim()) return [];
+  const lines = sectionBody.split(/\r?\n/);
+  const turns = [];
+  let role = null;
+  let at = "";
+  let buffer = [];
+  const flush = () => {
+    if (role !== null) {
+      const text = fromBlockquote(buffer.join("\n"));
+      if (text) turns.push({ role, text, at });
+    }
+    buffer = [];
+  };
+  for (const line of lines) {
+    const heading = /^###\s+(.+?)\s*$/.exec(line);
+    if (heading) {
+      flush();
+      const title = heading[1] ?? "";
+      const parts = title.split(" \u2014 ");
+      const label = (parts[0] ?? "").trim().toLowerCase();
+      at = parts.length > 1 ? parts.slice(1).join(" \u2014 ").trim() : "";
+      role = label.startsWith("you") || label.startsWith("user") ? "user" : "agent";
+    } else {
+      buffer.push(line);
+    }
+  }
+  flush();
+  return turns;
+}
+function serializeAnnotation(annotation, memoryRoot = "Agent Memory") {
+  const reviewBody = annotation.reviewText && annotation.reviewText.trim() ? annotation.reviewText.trim() : reviewPlaceholder();
+  const historyBody = annotation.reviewHistory?.trim() ?? "";
+  const dialogueBody = annotation.dialogue && annotation.dialogue.length > 0 ? serializeDialogue(annotation.dialogue) : "";
+  const body = [
+    `# ${annotation.id}`,
+    `## Selected Text
+
+${toBlockquote(annotation.anchor.selectedText)}`,
+    `## User Note
+
+${toBlockquote(annotation.userNote)}`,
+    `## Agent Review
+
+${reviewBody}`,
+    historyBody ? `## Review History
+
+${historyBody}` : "## Review History",
+    ...dialogueBody ? [`## Dialogue
+
+${dialogueBody}`] : []
+  ].join("\n\n");
+  return renderFrontmatter(
+    {
+      schema: 2,
+      kind: "annotation",
+      id: annotation.id,
+      source_file: annotation.sourceFile,
+      block_id: caretId(annotation.anchor.blockId),
+      anchor_origin: annotation.anchorOrigin ?? "generated",
+      status: annotation.status,
+      concepts: annotation.concepts,
+      related_cells: annotation.relatedMemoryCells.map(
+        (id) => wikiLink(`${memoryRoot}/memory-cells/${id}`, id)
+      ),
+      created_at: annotation.createdAt,
+      updated_at: annotation.updatedAt
+    },
+    body
+  );
+}
+function parseAnnotationFile(markdown) {
+  const document2 = parseFrontmatter(markdown);
+  if (document2) return parseV2Annotation(document2);
+  return parseLegacyAnnotation(markdown);
+}
+function parseV2Annotation(document2) {
+  if (document2.data.schema !== 2 || document2.data.kind !== "annotation") {
+    return null;
+  }
+  const id = typeof document2.data.id === "string" ? document2.data.id : "";
+  const sourceFile = typeof document2.data.source_file === "string" ? document2.data.source_file : "";
+  const blockId = typeof document2.data.block_id === "string" ? bareBlockId(document2.data.block_id) : "";
+  const createdAt = typeof document2.data.created_at === "string" ? document2.data.created_at : "";
+  const updatedAt = typeof document2.data.updated_at === "string" ? document2.data.updated_at : createdAt;
+  if (!id || !sourceFile || !blockId || !createdAt) return null;
+  const reviewSection = section(document2.body, "Agent Review");
+  const reviewText = isReviewPlaceholder(reviewSection) ? void 0 : reviewSection.trim();
+  const reviewHistory = section(document2.body, "Review History").trim() || void 0;
+  const review = reviewText ? parseAgentReview(reviewText, updatedAt) ?? void 0 : void 0;
+  const dialogue = parseDialogue(section(document2.body, "Dialogue"));
+  const origin = document2.data.anchor_origin;
+  return {
+    id,
+    sourceFile,
+    anchor: {
+      blockId,
+      selectedText: fromBlockquote(section(document2.body, "Selected Text"))
+    },
+    anchorOrigin: origin === "generated" || origin === "existing" || origin === "legacy" ? origin : "legacy",
+    userNote: fromBlockquote(section(document2.body, "User Note")),
+    status: deriveStatus(
+      normalizeStatus(
+        typeof document2.data.status === "string" ? document2.data.status : void 0
+      ),
+      reviewText !== void 0,
+      review !== void 0
+    ),
+    concepts: stringArray(document2.data.concepts),
+    relatedMemoryCells: wikiLinkIds(document2.data.related_cells),
+    review,
+    reviewText,
+    reviewHistory,
+    ...dialogue.length > 0 ? { dialogue } : {},
+    createdAt,
+    updatedAt
+  };
+}
+function parseLegacyAnnotation(markdown) {
+  const block = extractBlocks(markdown, "annotation")[0];
+  if (!block) return null;
+  const { lead, sections } = splitSections(block.body);
+  const meta3 = parseMetadata(lead);
+  const anchorValue = stripCode(meta3.get("anchor") ?? "");
+  const createdAt = meta3.get("created at") ?? "";
+  const updatedAt = meta3.get("updated at") ?? createdAt;
+  const selectedText = fromBlockquote(getSection(sections, "Selected Text"));
+  const reviewSection = getSection(sections, "Agent Review");
+  const historySection = getSection(sections, "Review History");
+  const reviewText = isReviewPlaceholder(reviewSection) ? void 0 : reviewSection.trim();
+  const reviewHistory = historySection.trim() ? historySection.trim() : void 0;
+  const review = reviewText ? parseAgentReview(reviewText, updatedAt) ?? void 0 : void 0;
+  const storedStatus = normalizeStatus(meta3.get("status"));
+  return {
+    id: block.id,
+    sourceFile: stripCode(meta3.get("source file") ?? ""),
+    anchor: {
+      blockId: bareBlockId(anchorValue),
+      selectedText
+    },
+    anchorOrigin: "legacy",
+    userNote: fromBlockquote(getSection(sections, "User Note")),
+    status: deriveStatus(storedStatus, reviewText !== void 0, review !== void 0),
+    concepts: parseList(meta3.get("concepts") ?? ""),
+    relatedMemoryCells: parseList(meta3.get("related memory cells") ?? ""),
+    review,
+    reviewText,
+    reviewHistory,
+    createdAt,
+    updatedAt
+  };
+}
+function updateAnnotationMarkdown(currentMarkdown, patch, memoryRoot = "Agent Memory") {
+  const existing = parseAnnotationFile(currentMarkdown);
+  if (!existing) return null;
+  const updated = {
+    ...existing,
+    userNote: patch.userNote ?? existing.userNote,
+    status: patch.status ?? existing.status,
+    concepts: patch.concepts ?? existing.concepts,
+    relatedMemoryCells: patch.relatedMemoryCells ?? existing.relatedMemoryCells,
+    anchor: patch.anchor ? { ...existing.anchor, ...patch.anchor } : existing.anchor,
+    dialogue: patch.dialogue ?? existing.dialogue,
+    updatedAt: patch.updatedAt ?? (/* @__PURE__ */ new Date()).toISOString()
+  };
+  return serializeAnnotation(updated, memoryRoot);
+}
+function normalizeStatus(value) {
+  const normalized = value?.trim().toLowerCase();
+  return annotationStatuses.find((status) => status === normalized) ?? "saved";
+}
+function deriveStatus(stored, hasReviewText, hasStructuredReview) {
+  if (stored === "archived" || stored === "source_missing") return stored;
+  if (hasReviewText) {
+    return hasStructuredReview ? "reviewed" : "reviewed_unstructured";
+  }
+  return stored;
+}
+
+// src/index-table.ts
+function recordFromAnnotation(annotation, memoryFile) {
+  const reviewSummary = annotation.review?.summary ? truncate(annotation.review.summary) : annotation.reviewText ? truncate(annotation.reviewText) : void 0;
+  return {
+    annotationId: annotation.id,
+    memoryFile,
+    sourceFile: annotation.sourceFile,
+    anchor: caretId(annotation.anchor.blockId),
+    anchorOrigin: annotation.anchorOrigin ?? "legacy",
+    selectedText: annotation.anchor.selectedText,
+    status: annotation.status,
+    concepts: annotation.concepts,
+    relatedMemoryCells: annotation.relatedMemoryCells,
+    reviewSummary,
+    reviewText: annotation.reviewText,
+    userNoteSummary: annotation.userNote ? truncate(annotation.userNote) : void 0,
+    userNote: annotation.userNote,
+    ...annotation.dialogue && annotation.dialogue.length > 0 ? { dialogue: annotation.dialogue } : {},
+    createdAt: annotation.createdAt,
+    updatedAt: annotation.updatedAt
+  };
+}
+function hasReview(status) {
+  return status === "reviewed" || status === "reviewed_unstructured";
+}
+var IndexTable = class _IndexTable {
+  records = /* @__PURE__ */ new Map();
+  constructor(records = []) {
+    this.replaceAll(records);
+  }
+  static fromJson(text) {
+    try {
+      const parsed = JSON.parse(text);
+      const rows = Array.isArray(parsed.records) ? parsed.records : [];
+      return new _IndexTable(rows.filter(isRecord));
+    } catch {
+      return new _IndexTable();
+    }
+  }
+  toJson() {
+    const file2 = { version: 1, records: this.all() };
+    return `${JSON.stringify(file2, null, 2)}
+`;
+  }
+  all() {
+    return [...this.records.values()];
+  }
+  ids() {
+    return [...this.records.keys()];
+  }
+  get(annotationId) {
+    return this.records.get(annotationId);
+  }
+  upsert(record2) {
+    this.records.set(record2.annotationId, record2);
+  }
+  remove(annotationId) {
+    this.records.delete(annotationId);
+  }
+  replaceAll(records) {
+    this.records.clear();
+    for (const record2 of records) this.records.set(record2.annotationId, record2);
+  }
+  sources() {
+    return [...new Set(this.all().map((record2) => record2.sourceFile))].sort();
+  }
+  concepts() {
+    return [
+      ...new Set(this.all().flatMap((record2) => record2.concepts))
+    ].sort();
+  }
+  query(filter = {}) {
+    const text = filter.text?.toLowerCase().trim();
+    const cutoff = filter.withinDays ? Date.now() - filter.withinDays * 864e5 : void 0;
+    return this.all().filter((record2) => {
+      if (text) {
+        const haystack = [
+          record2.annotationId,
+          record2.sourceFile,
+          record2.userNoteSummary ?? "",
+          record2.reviewSummary ?? "",
+          ...record2.concepts
+        ].join(" ").toLowerCase();
+        if (!haystack.includes(text)) return false;
+      }
+      if (filter.status && record2.status !== filter.status) return false;
+      if (filter.sourceFile && record2.sourceFile !== filter.sourceFile) {
+        return false;
+      }
+      if (filter.concept && !record2.concepts.includes(filter.concept)) {
+        return false;
+      }
+      if (filter.reviewState === "reviewed" && !hasReview(record2.status)) {
+        return false;
+      }
+      if (filter.reviewState === "unreviewed" && hasReview(record2.status)) {
+        return false;
+      }
+      if (cutoff !== void 0) {
+        const created = Date.parse(record2.createdAt);
+        if (Number.isFinite(created) && created < cutoff) return false;
+      }
+      return true;
+    }).sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+  }
+};
+function isRecord(value) {
+  return typeof value === "object" && value !== null && typeof value.annotationId === "string";
+}
+
 // src/markdown/memory-cell-file.ts
+function serializeMemoryCell(cell, memoryRoot = "Agent Memory") {
+  const data = {
+    schema: 2,
+    kind: "memory-cell",
+    id: cell.id,
+    type: cell.type,
+    status: cell.status,
+    concept: cell.concept,
+    ...cell.domain ? { domain: cell.domain } : {},
+    confidence: cell.confidence,
+    tags: cell.tags,
+    source_annotations: cell.sourceAnnotations.map(
+      (id) => wikiLink(`${memoryRoot}/annotations/${id}`, id)
+    ),
+    ...cell.validFrom ? { valid_from: cell.validFrom } : {},
+    ...cell.validUntil ? { valid_until: cell.validUntil } : {},
+    ...cell.supersedes ? { supersedes: cell.supersedes } : {},
+    created_at: cell.createdAt,
+    updated_at: cell.updatedAt
+  };
+  const body = [
+    `# ${cell.concept}`,
+    "",
+    "## Summary",
+    "",
+    cell.summary,
+    "",
+    "## Agent Guidance",
+    "",
+    cell.agentGuidance ?? ""
+  ].join("\n");
+  return renderFrontmatter(data, body);
+}
 function parseMemoryCellFile(markdown) {
   const document2 = parseFrontmatter(markdown);
   if (!document2) return parseLegacyMemoryCell(markdown);
@@ -23003,6 +23036,30 @@ function extractCandidate(body) {
 }
 
 // src/markdown/scene-file.ts
+function serializeScene(scene, memoryRoot = "Agent Memory") {
+  return renderFrontmatter(
+    {
+      schema: 2,
+      kind: "scene",
+      id: scene.id,
+      type: scene.type,
+      status: scene.status,
+      title: scene.title,
+      cells: scene.cells.map(
+        (id) => wikiLink(`${memoryRoot}/memory-cells/${id}`, id)
+      ),
+      tags: scene.tags,
+      created_at: scene.createdAt,
+      updated_at: scene.updatedAt
+    },
+    `# ${scene.title}
+
+## Summary
+
+${scene.summary}
+`
+  );
+}
 function parseSceneFile(markdown) {
   const document2 = parseFrontmatter(markdown);
   if (!document2 || document2.data.schema !== 2 || document2.data.kind !== "scene") {
@@ -24291,12 +24348,12 @@ function buildNotebook(records, options) {
     const sorted = [...recs].sort(
       (a, b) => a.createdAt.localeCompare(b.createdAt)
     );
-    const slug = uniqueSlug(slugify2(sourceFile), usedPageSlugs);
+    const slug2 = uniqueSlug(slugify2(sourceFile), usedPageSlugs);
     return {
       sourceFile,
       title: basename(sourceFile),
-      slug,
-      path: `${base}/pages/${slug}.md`,
+      slug: slug2,
+      path: `${base}/pages/${slug2}.md`,
       records: sorted,
       concepts: unique2(sorted.flatMap((record2) => record2.concepts))
     };
@@ -24447,17 +24504,44 @@ function stripMd2(path) {
   return path.replace(/\.md$/i, "");
 }
 function slugify2(value) {
-  const slug = stripMd2(value).replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-+|-+$/g, "");
-  return slug || "untitled";
+  const slug2 = stripMd2(value).replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-+|-+$/g, "");
+  return slug2 || "untitled";
 }
 function uniqueSlug(base, used) {
-  let slug = base;
-  for (let n = 2; used.has(slug); n += 1) slug = `${base}-${n}`;
-  used.add(slug);
-  return slug;
+  let slug2 = base;
+  for (let n = 2; used.has(slug2); n += 1) slug2 = `${base}-${n}`;
+  used.add(slug2);
+  return slug2;
 }
 function unique2(values) {
   return [...new Set(values.filter(Boolean))];
+}
+
+// src/memory-derive.ts
+function deriveScenes(cells, generatedAt) {
+  const byConcept = /* @__PURE__ */ new Map();
+  for (const cell of cells) {
+    const concept = cell.concept.trim();
+    if (!concept) continue;
+    const list = byConcept.get(concept);
+    if (list) list.push(cell);
+    else byConcept.set(concept, [cell]);
+  }
+  return [...byConcept.entries()].filter(([, group]) => group.length >= 2).sort(([a], [b]) => a.localeCompare(b)).map(([concept, group]) => ({
+    id: `SCENE-${slug(concept)}`,
+    type: "topic",
+    title: concept,
+    status: "active",
+    summary: `Auto-grouped from ${group.length} memory cells about ${concept}.`,
+    cells: group.map((cell) => cell.id).sort(),
+    tags: ["auto"],
+    createdAt: generatedAt,
+    updatedAt: generatedAt
+  }));
+}
+function slug(value) {
+  const out = value.replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-+|-+$/g, "");
+  return out || "topic";
 }
 
 // src/store.ts
@@ -24676,6 +24760,36 @@ var VaultStore = class {
   async deleteAnnotation(id) {
     const file2 = this.fileAt(this.annotationPath(id));
     if (file2) await this.app.vault.delete(file2);
+  }
+  /** Write a new memory cell file (the plugin owns the write). */
+  async createMemoryCell(cell) {
+    await this.writeVaultFile(
+      `${this.memoryCellsDir()}/${cell.id}.md`,
+      serializeMemoryCell(cell, this.memoryRoot())
+    );
+  }
+  /**
+   * Rebuild the auto-generated scenes from the current cells (a scene per concept
+   * with two or more cells). Hand-authored scenes (without the `auto` tag) are
+   * left untouched; stale auto scenes are removed.
+   */
+  async syncScenesFromCells() {
+    const cells = (await this.listMarkdownFiles(this.memoryCellsDir())).map((file2) => parseMemoryCellFile(file2.content)).filter((cell) => cell !== null);
+    const scenes = deriveScenes(cells, nowIso());
+    const wanted = new Set(scenes.map((scene) => scene.id));
+    for (const scene of scenes) {
+      await this.writeVaultFile(
+        `${this.scenesDir()}/${scene.id}.md`,
+        serializeScene(scene, this.memoryRoot())
+      );
+    }
+    for (const file2 of await this.listMarkdownFiles(this.scenesDir())) {
+      const scene = parseSceneFile(file2.content);
+      if (scene && scene.tags.includes("auto") && !wanted.has(scene.id)) {
+        const handle = this.fileAt(file2.path);
+        if (handle) await this.app.vault.delete(handle);
+      }
+    }
   }
   async listAnnotationFiles() {
     const folder = this.app.vault.getAbstractFileByPath(this.annotationsDir());
@@ -25016,6 +25130,12 @@ var en = {
   "notice.notebookEnriching": "Enriching notebook\u2026 {done}/{total}",
   "notice.notebookDone": "Notebook ready: {pages} pages, {chapters} chapters.",
   "notice.notebookFailed": "Notebook failed: {detail}",
+  "ribbon.openNotebook": "Open study notebook",
+  "cmd.openNotebook": "Open study notebook",
+  "cmd.createCell": "Create memory cell from current annotation",
+  "notice.cellDistilling": "Saving memory cell\u2026",
+  "notice.cellDone": "Memory cell saved: {concept}.",
+  "notice.cellFailed": "Could not create a memory cell.",
   "cmd.openChat": "Open tutor chat",
   "cmd.translate": "Translate selection (inline gloss)",
   "notice.cardBuild": "Opening Build chat to edit {id}\u2026",
@@ -25264,6 +25384,8 @@ var en = {
   "card.reply.thinking": "Thinking\u2026",
   "card.reply.empty": "(no reply)",
   "card.reply.error": "Couldn't reach the tutor. Check the engine/API settings.",
+  "card.dialogue": "Dialogue",
+  "card.saveCell": "Save as memory cell",
   "hl.dotted": "Dotted underline",
   "hl.wavy": "Wavy underline",
   "hl.bg": "Background tint",
@@ -25311,6 +25433,12 @@ var zhCn = {
   "notice.notebookEnriching": "\u6B63\u5728\u4E30\u5BCC\u7B14\u8BB0\u672C\u2026\u2026 {done}/{total}",
   "notice.notebookDone": "\u7B14\u8BB0\u672C\u5DF2\u751F\u6210\uFF1A{pages} \u9875\uFF0C{chapters} \u7AE0\u3002",
   "notice.notebookFailed": "\u7B14\u8BB0\u672C\u751F\u6210\u5931\u8D25\uFF1A{detail}",
+  "ribbon.openNotebook": "\u6253\u5F00\u5B66\u4E60\u7B14\u8BB0\u672C",
+  "cmd.openNotebook": "\u6253\u5F00\u5B66\u4E60\u7B14\u8BB0\u672C",
+  "cmd.createCell": "\u4ECE\u5F53\u524D\u6279\u6CE8\u521B\u5EFA\u8BB0\u5FC6\u5355\u5143",
+  "notice.cellDistilling": "\u6B63\u5728\u4FDD\u5B58\u8BB0\u5FC6\u5355\u5143\u2026\u2026",
+  "notice.cellDone": "\u5DF2\u4FDD\u5B58\u8BB0\u5FC6\u5355\u5143\uFF1A{concept}\u3002",
+  "notice.cellFailed": "\u65E0\u6CD5\u521B\u5EFA\u8BB0\u5FC6\u5355\u5143\u3002",
   "ribbon.open": "\u6253\u5F00 Annotation Tutor Lite",
   "ribbon.openChat": "\u6253\u5F00\u5B66\u4E60\u52A9\u624B\u5BF9\u8BDD",
   "chat.title": "\u5B66\u4E60\u52A9\u624B",
@@ -25534,6 +25662,8 @@ var zhCn = {
   "card.reply.thinking": "\u601D\u8003\u4E2D\u2026\u2026",
   "card.reply.empty": "\uFF08\u65E0\u56DE\u590D\uFF09",
   "card.reply.error": "\u65E0\u6CD5\u8FDE\u63A5\u52A9\u624B\uFF0C\u8BF7\u68C0\u67E5\u5F15\u64CE/API \u8BBE\u7F6E\u3002",
+  "card.dialogue": "\u5BF9\u8BDD",
+  "card.saveCell": "\u4FDD\u5B58\u4E3A\u8BB0\u5FC6\u5355\u5143",
   "hl.dotted": "\u70B9\u72B6\u4E0B\u5212\u7EBF",
   "hl.wavy": "\u6CE2\u6D6A\u4E0B\u5212\u7EBF",
   "hl.bg": "\u80CC\u666F\u5E95\u8272",
@@ -25581,6 +25711,12 @@ var zhTw = {
   "notice.notebookEnriching": "\u6B63\u5728\u8C50\u5BCC\u7B46\u8A18\u672C\u2026\u2026 {done}/{total}",
   "notice.notebookDone": "\u7B46\u8A18\u672C\u5DF2\u7522\u751F\uFF1A{pages} \u9801\uFF0C{chapters} \u7AE0\u3002",
   "notice.notebookFailed": "\u7B46\u8A18\u672C\u7522\u751F\u5931\u6557\uFF1A{detail}",
+  "ribbon.openNotebook": "\u958B\u555F\u5B78\u7FD2\u7B46\u8A18\u672C",
+  "cmd.openNotebook": "\u958B\u555F\u5B78\u7FD2\u7B46\u8A18\u672C",
+  "cmd.createCell": "\u5F9E\u76EE\u524D\u8A3B\u89E3\u5EFA\u7ACB\u8A18\u61B6\u55AE\u5143",
+  "notice.cellDistilling": "\u6B63\u5728\u5132\u5B58\u8A18\u61B6\u55AE\u5143\u2026\u2026",
+  "notice.cellDone": "\u5DF2\u5132\u5B58\u8A18\u61B6\u55AE\u5143\uFF1A{concept}\u3002",
+  "notice.cellFailed": "\u7121\u6CD5\u5EFA\u7ACB\u8A18\u61B6\u55AE\u5143\u3002",
   "ribbon.open": "\u958B\u555F Annotation Tutor Lite",
   "ribbon.openChat": "\u958B\u555F\u5B78\u7FD2\u52A9\u624B\u5C0D\u8A71",
   "chat.title": "\u5B78\u7FD2\u52A9\u624B",
@@ -25748,6 +25884,8 @@ var zhTw = {
   "card.reply.thinking": "\u601D\u8003\u4E2D\u2026\u2026",
   "card.reply.empty": "\uFF08\u7121\u56DE\u8986\uFF09",
   "card.reply.error": "\u7121\u6CD5\u9023\u7DDA\u52A9\u624B\uFF0C\u8ACB\u6AA2\u67E5\u5F15\u64CE/API \u8A2D\u5B9A\u3002",
+  "card.dialogue": "\u5C0D\u8A71",
+  "card.saveCell": "\u5132\u5B58\u70BA\u8A18\u61B6\u55AE\u5143",
   "hl.dotted": "\u9EDE\u72C0\u5E95\u7DDA",
   "hl.wavy": "\u6CE2\u6D6A\u5E95\u7DDA",
   "hl.bg": "\u80CC\u666F\u8272",
@@ -25795,6 +25933,12 @@ var ja = {
   "notice.notebookEnriching": "\u30CE\u30FC\u30C8\u30D6\u30C3\u30AF\u3092\u5145\u5B9F\u4E2D\u2026 {done}/{total}",
   "notice.notebookDone": "\u30CE\u30FC\u30C8\u30D6\u30C3\u30AF\u5B8C\u6210\uFF1A{pages} \u30DA\u30FC\u30B8\u3001{chapters} \u7AE0\u3002",
   "notice.notebookFailed": "\u30CE\u30FC\u30C8\u30D6\u30C3\u30AF\u306E\u4F5C\u6210\u306B\u5931\u6557\u3057\u307E\u3057\u305F\uFF1A{detail}",
+  "ribbon.openNotebook": "\u5B66\u7FD2\u30CE\u30FC\u30C8\u30D6\u30C3\u30AF\u3092\u958B\u304F",
+  "cmd.openNotebook": "\u5B66\u7FD2\u30CE\u30FC\u30C8\u30D6\u30C3\u30AF\u3092\u958B\u304F",
+  "cmd.createCell": "\u73FE\u5728\u306E\u6CE8\u91C8\u304B\u3089\u30E1\u30E2\u30EA\u30BB\u30EB\u3092\u4F5C\u6210",
+  "notice.cellDistilling": "\u30E1\u30E2\u30EA\u30BB\u30EB\u3092\u4FDD\u5B58\u4E2D\u2026",
+  "notice.cellDone": "\u30E1\u30E2\u30EA\u30BB\u30EB\u3092\u4FDD\u5B58\u3057\u307E\u3057\u305F\uFF1A{concept}\u3002",
+  "notice.cellFailed": "\u30E1\u30E2\u30EA\u30BB\u30EB\u3092\u4F5C\u6210\u3067\u304D\u307E\u305B\u3093\u3067\u3057\u305F\u3002",
   "ribbon.open": "Annotation Tutor Lite \u3092\u958B\u304F",
   "ribbon.openChat": "\u30C1\u30E5\u30FC\u30BF\u30FC\u30C1\u30E3\u30C3\u30C8\u3092\u958B\u304F",
   "chat.title": "\u30C1\u30E5\u30FC\u30BF\u30FC",
@@ -25962,6 +26106,8 @@ var ja = {
   "card.reply.thinking": "\u8003\u3048\u4E2D\u2026",
   "card.reply.empty": "\uFF08\u5FDC\u7B54\u306A\u3057\uFF09",
   "card.reply.error": "\u30C1\u30E5\u30FC\u30BF\u30FC\u306B\u63A5\u7D9A\u3067\u304D\u307E\u305B\u3093\u3002\u30A8\u30F3\u30B8\u30F3/API\u8A2D\u5B9A\u3092\u78BA\u8A8D\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
+  "card.dialogue": "\u5BFE\u8A71",
+  "card.saveCell": "\u30E1\u30E2\u30EA\u30BB\u30EB\u3068\u3057\u3066\u4FDD\u5B58",
   "hl.dotted": "\u70B9\u7DDA\u306E\u4E0B\u7DDA",
   "hl.wavy": "\u6CE2\u7DDA\u306E\u4E0B\u7DDA",
   "hl.bg": "\u80CC\u666F\u306E\u8272\u4ED8\u3051",
@@ -27272,6 +27418,8 @@ function buildMarginCard(mark, options) {
   const card = document.createElement("div");
   card.className = options.paper ? "atl-rail-card atl-rail-card--paper" : "atl-rail-card";
   card.dataset["atlId"] = mark.id;
+  let toggleDialogue = () => {
+  };
   const head = document.createElement("div");
   head.className = "atl-rail-card-head";
   const grip = document.createElement("span");
@@ -27290,12 +27438,7 @@ function buildMarginCard(mark, options) {
     t("card.ask"),
     () => getMarginCardHandlers()?.ask(mark.id, editor.value)
   );
-  headButton(
-    head,
-    "message-circle",
-    t("card.discuss"),
-    () => getMarginCardHandlers()?.discuss(mark.id)
-  );
+  headButton(head, "message-circle", t("card.dialogue"), () => toggleDialogue());
   headButton(
     head,
     "trash-2",
@@ -27332,7 +27475,7 @@ function buildMarginCard(mark, options) {
       card.appendChild(question);
     }
   }
-  renderDialogue(card, mark);
+  toggleDialogue = renderDialogue(card, mark).toggle;
   let applying = true;
   if (options.geom.w) card.style.width = `${options.geom.w}px`;
   if (options.geom.h) card.style.height = `${options.geom.h}px`;
@@ -27362,6 +27505,7 @@ function buildMarginCard(mark, options) {
 function renderDialogue(card, mark) {
   const wrap = document.createElement("div");
   wrap.className = "atl-rail-dialogue";
+  wrap.style.display = "none";
   const thread = document.createElement("div");
   thread.className = "atl-rail-thread";
   for (const turn of mark.dialogue ?? []) appendTurn(thread, turn.role, turn.text);
@@ -27380,6 +27524,17 @@ function renderDialogue(card, mark) {
   row.appendChild(input);
   row.appendChild(send);
   wrap.appendChild(row);
+  const footer = document.createElement("div");
+  footer.className = "atl-rail-dialogue-footer";
+  const saveCell = document.createElement("button");
+  saveCell.className = "atl-rail-savecell";
+  (0, import_obsidian5.setIcon)(saveCell, "brain");
+  saveCell.appendChild(document.createTextNode(` ${t("card.saveCell")}`));
+  (0, import_obsidian5.setTooltip)(saveCell, t("card.saveCell"));
+  saveCell.addEventListener("mousedown", (event) => event.stopPropagation());
+  saveCell.onclick = () => void getMarginCardHandlers()?.saveCell(mark.id);
+  footer.appendChild(saveCell);
+  wrap.appendChild(footer);
   const submit = async () => {
     const message = input.value.trim();
     const cardHandlers = getMarginCardHandlers();
@@ -27415,11 +27570,27 @@ function renderDialogue(card, mark) {
     }
   });
   card.appendChild(wrap);
+  return {
+    toggle: () => {
+      const opening = wrap.style.display === "none";
+      wrap.style.display = opening ? "flex" : "none";
+      if (opening) {
+        input.focus();
+        thread.scrollTop = thread.scrollHeight;
+      }
+    }
+  };
 }
 function appendTurn(thread, role, text) {
   const el = document.createElement("div");
   el.className = `atl-rail-turn atl-rail-turn--${role}`;
-  el.textContent = text;
+  const render = getMarginCardHandlers()?.render;
+  if (role === "agent" && render) {
+    el.classList.add("atl-rail-md");
+    void render(el, text);
+  } else {
+    el.textContent = text;
+  }
   thread.appendChild(el);
 }
 function appendNotice(thread, text) {
@@ -29315,6 +29486,33 @@ var NotePopover = class _NotePopover {
 };
 
 // src/main.ts
+var CELL_TYPES = [
+  "understanding",
+  "misconception",
+  "goal",
+  "difficulty",
+  "strategy",
+  "progress"
+];
+function parseJsonObject(text) {
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) return null;
+  try {
+    const value = JSON.parse(match[0]);
+    return value && typeof value === "object" && !Array.isArray(value) ? value : null;
+  } catch {
+    return null;
+  }
+}
+function asText(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+function asCellType(value) {
+  return CELL_TYPES.includes(value) ? value : "understanding";
+}
+function asConfidence(value) {
+  return typeof value === "number" && Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 0.6;
+}
 var AnnotationTutorLitePlugin = class extends import_obsidian11.Plugin {
   settings = { ...DEFAULT_SETTINGS };
   indexTable = new IndexTable();
@@ -29391,6 +29589,8 @@ var AnnotationTutorLitePlugin = class extends import_obsidian11.Plugin {
       ask: (id, note) => void this.askFromCard(id, note),
       discuss: (id) => void this.openChatForAnnotation(id),
       reply: (id, message) => this.replyInAnnotation(id, message),
+      render: (el, markdown) => import_obsidian11.MarkdownRenderer.render(this.app, markdown, el, "", this),
+      saveCell: (id) => void this.createCellFromAnnotation(id),
       remove: (id) => this.confirmDeleteById(id),
       settings: () => this.openSettings()
     });
@@ -29416,6 +29616,9 @@ var AnnotationTutorLitePlugin = class extends import_obsidian11.Plugin {
     this.registerView(CHAT_VIEW_TYPE, (leaf) => new ChatView(leaf, this));
     this.addRibbonIcon("graduation-cap", t("ribbon.openChat"), () => {
       void this.openChat();
+    });
+    this.addRibbonIcon("notebook", t("ribbon.openNotebook"), () => {
+      void this.openNotebook();
     });
     this.registerCommands();
     this.registerEvent(
@@ -29705,6 +29908,11 @@ var AnnotationTutorLitePlugin = class extends import_obsidian11.Plugin {
       callback: () => void this.toggleMarks()
     });
     this.addCommand({
+      id: "open-notebook",
+      name: t("cmd.openNotebook"),
+      callback: () => void this.openNotebook()
+    });
+    this.addCommand({
       id: "build-notebook",
       name: t("cmd.buildNotebook"),
       callback: () => void this.buildNotebook()
@@ -29713,6 +29921,15 @@ var AnnotationTutorLitePlugin = class extends import_obsidian11.Plugin {
       id: "enrich-notebook",
       name: t("cmd.enrichNotebook"),
       callback: () => void this.enrichNotebook()
+    });
+    this.addCommand({
+      id: "create-memory-cell",
+      name: t("cmd.createCell"),
+      callback: () => {
+        const record2 = this.getActiveRecord();
+        if (record2) void this.createCellFromAnnotation(record2.annotationId);
+        else new import_obsidian11.Notice(t("notice.placeCursor"));
+      }
     });
   }
   addEditorMenuItems(menu, editor, info) {
@@ -30545,6 +30762,85 @@ ${profile}
       ...api.error ? { error: api.error } : {}
     };
   }
+  /**
+   * Distill a durable memory cell from an annotation (note + review + dialogue),
+   * write it, and refresh the auto-grouped scenes. The engine produces the cell
+   * when reachable; otherwise we fall back to a cell built from the note so the
+   * learning memory still grows. This is the path that populates Cells & Scenes.
+   */
+  async createCellFromAnnotation(id) {
+    const record2 = this.indexTable.get(id);
+    if (!record2) {
+      new import_obsidian11.Notice(t("notice.placeCursor"));
+      return;
+    }
+    const progress = new import_obsidian11.Notice(t("notice.cellDistilling"), 0);
+    try {
+      const cell = await this.distillCell(record2);
+      if (!cell) {
+        new import_obsidian11.Notice(t("notice.cellFailed"));
+        return;
+      }
+      await this.store.createMemoryCell(cell);
+      await this.store.syncScenesFromCells();
+      await this.rebuildIndex(false);
+      new import_obsidian11.Notice(t("notice.cellDone", { concept: cell.concept }));
+    } catch (error51) {
+      console.error("[Annotation Tutor Lite] cell creation failed", error51);
+      new import_obsidian11.Notice(t("notice.cellFailed"));
+    } finally {
+      progress.hide();
+    }
+  }
+  /** Build a validated MemoryCell from an annotation, model-distilled if possible. */
+  async distillCell(record2) {
+    const lang = this.settings.reviewLanguage.trim() || detectLanguageName(record2.userNote ?? "");
+    const dialogue = (record2.dialogue ?? []).map((turn2) => `${turn2.role === "agent" ? "Tutor" : "Learner"}: ${turn2.text}`).join("\n");
+    const system = `${tutorSystemPrompt(lang)}
+
+Distill ONE durable learning-memory cell from this annotation. Reply with a single JSON object and nothing else.`;
+    const user = [
+      "JSON keys:",
+      "- type: one of understanding | misconception | goal | difficulty | strategy | progress",
+      "- concept: a short noun phrase naming the topic",
+      `- summary: 1-3 sentences on what the learner now understands or struggles with (in ${lang})`,
+      "- confidence: a number from 0 to 1",
+      "",
+      `Selected text: ${record2.selectedText ?? ""}`,
+      `Learner's note: ${record2.userNote ?? record2.userNoteSummary ?? ""}`,
+      ...record2.reviewText ? [`Tutor review: ${record2.reviewText}`] : [],
+      ...dialogue ? [`Dialogue:
+${dialogue}`] : []
+    ].join("\n");
+    const turn = await this.runDialogueTurn(
+      [
+        { role: "system", content: system },
+        { role: "user", content: user }
+      ],
+      `${system}
+
+${user}`
+    );
+    const parsed = turn.ok ? parseJsonObject(turn.text) : null;
+    const concept = asText(parsed?.["concept"]) || record2.concepts[0] || (record2.selectedText ?? "").slice(0, 40).trim() || record2.annotationId;
+    const summary = asText(parsed?.["summary"]) || (record2.userNote ?? record2.userNoteSummary ?? record2.reviewText ?? "").trim();
+    if (!summary) return null;
+    const now = nowIso();
+    const candidate = {
+      id: makeId("MEM", this.librarySnapshot.cells.map((cell) => cell.id)),
+      type: asCellType(parsed?.["type"]),
+      concept,
+      status: "new",
+      summary,
+      sourceAnnotations: [record2.annotationId],
+      tags: record2.concepts,
+      confidence: asConfidence(parsed?.["confidence"]),
+      createdAt: now,
+      updatedAt: now
+    };
+    const validated = memoryCellSchema.safeParse(candidate);
+    return validated.success ? validated.data : null;
+  }
   confirmDeleteById(id) {
     const record2 = this.indexTable.get(id);
     if (record2) this.confirmDelete(record2);
@@ -30773,6 +31069,15 @@ ${profile}
     await this.rebuildIndex(false);
   }
   // --- notebook --------------------------------------------------------------
+  /** Open the study notebook, building it first if it doesn't exist yet. */
+  async openNotebook() {
+    const path = this.store.notebookIndexPath();
+    if (this.app.vault.getAbstractFileByPath(path) instanceof import_obsidian11.TFile) {
+      await this.openLibraryPath(path);
+      return;
+    }
+    await this.buildNotebook();
+  }
   /**
    * Build the per-Vault study notebook (index + per-document pages + related-
    * document chapters) from the current annotations and dialogue, then open it.

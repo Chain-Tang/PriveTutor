@@ -9,6 +9,7 @@ import type {
   DialogueTurn,
   IndexRecord,
   LearnerProfile,
+  MemoryCell,
   MemoryProposal,
   Task
 } from "./model.js";
@@ -52,6 +53,12 @@ import {
 } from "./library-index.js";
 import { validateProposalCandidate } from "./memory-policy.js";
 import { buildNotebook } from "./markdown/notebook.js";
+import {
+  parseMemoryCellFile,
+  serializeMemoryCell
+} from "./markdown/memory-cell-file.js";
+import { parseSceneFile, serializeScene } from "./markdown/scene-file.js";
+import { deriveScenes } from "./memory-derive.js";
 
 const SELF_WRITE_WINDOW_MS = 1500;
 
@@ -316,6 +323,40 @@ export class VaultStore {
   public async deleteAnnotation(id: string): Promise<void> {
     const file = this.fileAt(this.annotationPath(id));
     if (file) await this.app.vault.delete(file);
+  }
+
+  /** Write a new memory cell file (the plugin owns the write). */
+  public async createMemoryCell(cell: MemoryCell): Promise<void> {
+    await this.writeVaultFile(
+      `${this.memoryCellsDir()}/${cell.id}.md`,
+      serializeMemoryCell(cell, this.memoryRoot())
+    );
+  }
+
+  /**
+   * Rebuild the auto-generated scenes from the current cells (a scene per concept
+   * with two or more cells). Hand-authored scenes (without the `auto` tag) are
+   * left untouched; stale auto scenes are removed.
+   */
+  public async syncScenesFromCells(): Promise<void> {
+    const cells = (await this.listMarkdownFiles(this.memoryCellsDir()))
+      .map((file) => parseMemoryCellFile(file.content))
+      .filter((cell): cell is MemoryCell => cell !== null);
+    const scenes = deriveScenes(cells, nowIso());
+    const wanted = new Set(scenes.map((scene) => scene.id));
+    for (const scene of scenes) {
+      await this.writeVaultFile(
+        `${this.scenesDir()}/${scene.id}.md`,
+        serializeScene(scene, this.memoryRoot())
+      );
+    }
+    for (const file of await this.listMarkdownFiles(this.scenesDir())) {
+      const scene = parseSceneFile(file.content);
+      if (scene && scene.tags.includes("auto") && !wanted.has(scene.id)) {
+        const handle = this.fileAt(file.path);
+        if (handle) await this.app.vault.delete(handle);
+      }
+    }
   }
 
   public async listAnnotationFiles(): Promise<

@@ -31,6 +31,10 @@ export type MarginCardHandlers = {
   discuss: (id: string) => void;
   /** Send one in-card dialogue turn; resolves with the tutor's reply (+ any edit). */
   reply: (id: string, message: string) => Promise<DialogueReplyResult>;
+  /** Render Markdown into an element (so tutor replies aren't shown as raw text). */
+  render: (el: HTMLElement, markdown: string) => void | Promise<void>;
+  /** Distill a memory cell from this annotation's note + review + dialogue. */
+  saveCell: (id: string) => void | Promise<void>;
   remove: (id: string) => void;
   settings: () => void;
 };
@@ -98,6 +102,9 @@ export function buildMarginCard(
     : "atl-rail-card";
   card.dataset["atlId"] = mark.id;
 
+  // Assigned once the dialogue area is built; the header button toggles it.
+  let toggleDialogue = (): void => {};
+
   const head = document.createElement("div");
   head.className = "atl-rail-card-head";
   const grip = document.createElement("span");
@@ -110,9 +117,8 @@ export function buildMarginCard(
   headButton(head, "sparkles", t("card.ask"), () =>
     getMarginCardHandlers()?.ask(mark.id, editor.value)
   );
-  headButton(head, "message-circle", t("card.discuss"), () =>
-    getMarginCardHandlers()?.discuss(mark.id)
-  );
+  // Keeps reading immersive: the dialogue input stays hidden until requested.
+  headButton(head, "message-circle", t("card.dialogue"), () => toggleDialogue());
   headButton(head, "trash-2", t("card.delete"), () =>
     getMarginCardHandlers()?.remove(mark.id)
   );
@@ -151,10 +157,10 @@ export function buildMarginCard(
     }
   }
 
-  // A continuous dialogue: the learner can reply right under the comment (e.g.
-  // below the Socratic question), the tutor remembers the thread (persisted in
-  // the annotation file), and a "rewrite the original" request surfaces a diff.
-  renderDialogue(card, mark);
+  // A continuous dialogue: hidden until the learner clicks the dialogue button,
+  // then the tutor remembers the thread (persisted in the annotation file) and a
+  // "rewrite the original" request surfaces a diff.
+  toggleDialogue = renderDialogue(card, mark).toggle;
 
   // Apply remembered size, then ignore the resize events that applying it fires.
   let applying = true;
@@ -190,10 +196,14 @@ export function buildMarginCard(
   return { card, observer };
 }
 
-/** Build the dialogue thread + reply input under a card's note/review. */
-function renderDialogue(card: HTMLElement, mark: AnchorMark): void {
+/**
+ * Build the dialogue thread + reply input, hidden until toggled (so reading
+ * stays immersive). Returns a `toggle` the header button calls to reveal it.
+ */
+function renderDialogue(card: HTMLElement, mark: AnchorMark): { toggle: () => void } {
   const wrap = document.createElement("div");
   wrap.className = "atl-rail-dialogue";
+  wrap.style.display = "none";
 
   const thread = document.createElement("div");
   thread.className = "atl-rail-thread";
@@ -214,6 +224,18 @@ function renderDialogue(card: HTMLElement, mark: AnchorMark): void {
   row.appendChild(input);
   row.appendChild(send);
   wrap.appendChild(row);
+
+  const footer = document.createElement("div");
+  footer.className = "atl-rail-dialogue-footer";
+  const saveCell = document.createElement("button");
+  saveCell.className = "atl-rail-savecell";
+  setIcon(saveCell, "brain");
+  saveCell.appendChild(document.createTextNode(` ${t("card.saveCell")}`));
+  setTooltip(saveCell, t("card.saveCell"));
+  saveCell.addEventListener("mousedown", (event) => event.stopPropagation());
+  saveCell.onclick = () => void getMarginCardHandlers()?.saveCell(mark.id);
+  footer.appendChild(saveCell);
+  wrap.appendChild(footer);
 
   const submit = async (): Promise<void> => {
     const message = input.value.trim();
@@ -251,6 +273,16 @@ function renderDialogue(card: HTMLElement, mark: AnchorMark): void {
   });
 
   card.appendChild(wrap);
+  return {
+    toggle: () => {
+      const opening = wrap.style.display === "none";
+      wrap.style.display = opening ? "flex" : "none";
+      if (opening) {
+        input.focus();
+        thread.scrollTop = thread.scrollHeight;
+      }
+    }
+  };
 }
 
 function appendTurn(
@@ -260,7 +292,14 @@ function appendTurn(
 ): void {
   const el = document.createElement("div");
   el.className = `atl-rail-turn atl-rail-turn--${role}`;
-  el.textContent = text;
+  // Render the tutor's reply as Markdown; the learner's own line stays plain.
+  const render = getMarginCardHandlers()?.render;
+  if (role === "agent" && render) {
+    el.classList.add("atl-rail-md");
+    void render(el, text);
+  } else {
+    el.textContent = text;
+  }
   thread.appendChild(el);
 }
 

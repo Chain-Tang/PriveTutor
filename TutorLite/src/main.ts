@@ -3,6 +3,7 @@ import {
   type EditorPosition,
   type MarkdownFileInfo,
   type MarkdownPostProcessorContext,
+  MarkdownRenderer,
   MarkdownView,
   Menu,
   Notice,
@@ -18,9 +19,11 @@ import {
   type Annotation,
   type DialogueTurn,
   type IndexRecord,
+  type MemoryCell,
   type Task,
   bareBlockId
 } from "./model.js";
+import { memoryCellSchema } from "./schemas.js";
 import { blockIdForAnnotation, makeId, nowIso } from "./ids.js";
 import { resolveAnchor } from "./anchors.js";
 import {
@@ -127,6 +130,45 @@ import { NotePopover } from "./views/note-popover.js";
 type EditorWithCm = Editor & { cm?: EditorView };
 type Block = { startLine: number; endLine: number };
 
+const CELL_TYPES: readonly MemoryCell["type"][] = [
+  "understanding",
+  "misconception",
+  "goal",
+  "difficulty",
+  "strategy",
+  "progress"
+];
+
+/** Pull the first JSON object out of a model reply (tolerant of surrounding prose). */
+function parseJsonObject(text: string): Record<string, unknown> | null {
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) return null;
+  try {
+    const value: unknown = JSON.parse(match[0]);
+    return value && typeof value === "object" && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function asText(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function asCellType(value: unknown): MemoryCell["type"] {
+  return CELL_TYPES.includes(value as MemoryCell["type"])
+    ? (value as MemoryCell["type"])
+    : "understanding";
+}
+
+function asConfidence(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value)
+    ? Math.min(1, Math.max(0, value))
+    : 0.6;
+}
+
 /** Normalized result of one review attempt, shared by both engines. */
 type ReviewOutcome =
   | { kind: "ok"; reviewText: string }
@@ -228,6 +270,9 @@ export default class AnnotationTutorLitePlugin extends Plugin {
       ask: (id, note) => void this.askFromCard(id, note),
       discuss: (id) => void this.openChatForAnnotation(id),
       reply: (id, message) => this.replyInAnnotation(id, message),
+      render: (el, markdown) =>
+        MarkdownRenderer.render(this.app, markdown, el, "", this),
+      saveCell: (id) => void this.createCellFromAnnotation(id),
       remove: (id) => this.confirmDeleteById(id),
       settings: () => this.openSettings()
     });
@@ -255,6 +300,9 @@ export default class AnnotationTutorLitePlugin extends Plugin {
     this.registerView(CHAT_VIEW_TYPE, (leaf) => new ChatView(leaf, this));
     this.addRibbonIcon("graduation-cap", t("ribbon.openChat"), () => {
       void this.openChat();
+    });
+    this.addRibbonIcon("notebook", t("ribbon.openNotebook"), () => {
+      void this.openNotebook();
     });
 
     this.registerCommands();
@@ -574,6 +622,11 @@ export default class AnnotationTutorLitePlugin extends Plugin {
       callback: () => void this.toggleMarks()
     });
     this.addCommand({
+      id: "open-notebook",
+      name: t("cmd.openNotebook"),
+      callback: () => void this.openNotebook()
+    });
+    this.addCommand({
       id: "build-notebook",
       name: t("cmd.buildNotebook"),
       callback: () => void this.buildNotebook()
@@ -582,6 +635,15 @@ export default class AnnotationTutorLitePlugin extends Plugin {
       id: "enrich-notebook",
       name: t("cmd.enrichNotebook"),
       callback: () => void this.enrichNotebook()
+    });
+    this.addCommand({
+      id: "create-memory-cell",
+      name: t("cmd.createCell"),
+      callback: () => {
+        const record = this.getActiveRecord();
+        if (record) void this.createCellFromAnnotation(record.annotationId);
+        else new Notice(t("notice.placeCursor"));
+      }
     });
   }
 
@@ -1595,6 +1657,92 @@ export default class AnnotationTutorLitePlugin extends Plugin {
     };
   }
 
+  /**
+   * Distill a durable memory cell from an annotation (note + review + dialogue),
+   * write it, and refresh the auto-grouped scenes. The engine produces the cell
+   * when reachable; otherwise we fall back to a cell built from the note so the
+   * learning memory still grows. This is the path that populates Cells & Scenes.
+   */
+  public async createCellFromAnnotation(id: string): Promise<void> {
+    const record = this.indexTable.get(id);
+    if (!record) {
+      new Notice(t("notice.placeCursor"));
+      return;
+    }
+    const progress = new Notice(t("notice.cellDistilling"), 0);
+    try {
+      const cell = await this.distillCell(record);
+      if (!cell) {
+        new Notice(t("notice.cellFailed"));
+        return;
+      }
+      await this.store.createMemoryCell(cell);
+      await this.store.syncScenesFromCells();
+      await this.rebuildIndex(false);
+      new Notice(t("notice.cellDone", { concept: cell.concept }));
+    } catch (error) {
+      console.error("[Annotation Tutor Lite] cell creation failed", error);
+      new Notice(t("notice.cellFailed"));
+    } finally {
+      progress.hide();
+    }
+  }
+
+  /** Build a validated MemoryCell from an annotation, model-distilled if possible. */
+  private async distillCell(record: IndexRecord): Promise<MemoryCell | null> {
+    const lang =
+      this.settings.reviewLanguage.trim() || detectLanguageName(record.userNote ?? "");
+    const dialogue = (record.dialogue ?? [])
+      .map((turn) => `${turn.role === "agent" ? "Tutor" : "Learner"}: ${turn.text}`)
+      .join("\n");
+    const system = `${tutorSystemPrompt(lang)}\n\nDistill ONE durable learning-memory cell from this annotation. Reply with a single JSON object and nothing else.`;
+    const user = [
+      "JSON keys:",
+      "- type: one of understanding | misconception | goal | difficulty | strategy | progress",
+      "- concept: a short noun phrase naming the topic",
+      `- summary: 1-3 sentences on what the learner now understands or struggles with (in ${lang})`,
+      "- confidence: a number from 0 to 1",
+      "",
+      `Selected text: ${record.selectedText ?? ""}`,
+      `Learner's note: ${record.userNote ?? record.userNoteSummary ?? ""}`,
+      ...(record.reviewText ? [`Tutor review: ${record.reviewText}`] : []),
+      ...(dialogue ? [`Dialogue:\n${dialogue}`] : [])
+    ].join("\n");
+    const turn = await this.runDialogueTurn(
+      [
+        { role: "system", content: system },
+        { role: "user", content: user }
+      ],
+      `${system}\n\n${user}`
+    );
+    const parsed = turn.ok ? parseJsonObject(turn.text) : null;
+
+    const concept =
+      asText(parsed?.["concept"]) ||
+      record.concepts[0] ||
+      (record.selectedText ?? "").slice(0, 40).trim() ||
+      record.annotationId;
+    const summary =
+      asText(parsed?.["summary"]) ||
+      (record.userNote ?? record.userNoteSummary ?? record.reviewText ?? "").trim();
+    if (!summary) return null;
+    const now = nowIso();
+    const candidate: MemoryCell = {
+      id: makeId("MEM", this.librarySnapshot.cells.map((cell) => cell.id)),
+      type: asCellType(parsed?.["type"]),
+      concept,
+      status: "new",
+      summary,
+      sourceAnnotations: [record.annotationId],
+      tags: record.concepts,
+      confidence: asConfidence(parsed?.["confidence"]),
+      createdAt: now,
+      updatedAt: now
+    };
+    const validated = memoryCellSchema.safeParse(candidate);
+    return validated.success ? validated.data : null;
+  }
+
   private confirmDeleteById(id: string): void {
     const record = this.indexTable.get(id);
     if (record) this.confirmDelete(record);
@@ -1876,6 +2024,16 @@ export default class AnnotationTutorLitePlugin extends Plugin {
   }
 
   // --- notebook --------------------------------------------------------------
+
+  /** Open the study notebook, building it first if it doesn't exist yet. */
+  public async openNotebook(): Promise<void> {
+    const path = this.store.notebookIndexPath();
+    if (this.app.vault.getAbstractFileByPath(path) instanceof TFile) {
+      await this.openLibraryPath(path);
+      return;
+    }
+    await this.buildNotebook();
+  }
 
   /**
    * Build the per-Vault study notebook (index + per-document pages + related-
