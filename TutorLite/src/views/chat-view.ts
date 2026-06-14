@@ -22,7 +22,7 @@ import type { IndexRecord } from "../model.js";
 import { t } from "../i18n.js";
 import { classifyIntent } from "../intent.js";
 import { detectLanguageName } from "../lang.js";
-import { lineDiff } from "../line-diff.js";
+import { diffLineClass, lineDiff } from "../line-diff.js";
 import { buildEditInstruction, extractEdit } from "../edit-parse.js";
 import {
   buildApiMessages,
@@ -450,12 +450,7 @@ export class ChatView extends ItemView {
       ? lineDiff(before, after)
       : after.split(/\r?\n/).map((line) => `+ ${line}`).join("\n");
     for (const line of diff.split("\n")) {
-      const cls = line.startsWith("+")
-        ? "atl-diff-add"
-        : line.startsWith("-")
-          ? "atl-diff-del"
-          : "atl-diff-ctx";
-      pre.createDiv({ cls, text: line });
+      pre.createDiv({ cls: diffLineClass(line), text: line });
     }
   }
 

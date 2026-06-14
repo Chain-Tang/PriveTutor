@@ -1,3 +1,10 @@
+/** CSS class for one rendered diff line, by its `+` / `-` / context prefix. */
+export function diffLineClass(line: string): string {
+  if (line.startsWith("+")) return "atl-diff-add";
+  if (line.startsWith("-")) return "atl-diff-del";
+  return "atl-diff-ctx";
+}
+
 export function lineDiff(before: string, after: string): string {
   const left = before.split(/\r?\n/);
   const right = after.split(/\r?\n/);

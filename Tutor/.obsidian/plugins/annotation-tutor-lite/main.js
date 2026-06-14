@@ -23281,6 +23281,11 @@ function fileStem2(path) {
 }
 
 // src/line-diff.ts
+function diffLineClass(line) {
+  if (line.startsWith("+")) return "atl-diff-add";
+  if (line.startsWith("-")) return "atl-diff-del";
+  return "atl-diff-ctx";
+}
 function lineDiff(before, after) {
   const left = before.split(/\r?\n/);
   const right = after.split(/\r?\n/);
@@ -27435,7 +27440,7 @@ function appendEditCard(thread, edit) {
   pre.className = "atl-diff";
   for (const line of edit.diff.split("\n")) {
     const div = document.createElement("div");
-    div.className = line.startsWith("+") ? "atl-diff-add" : line.startsWith("-") ? "atl-diff-del" : "atl-diff-ctx";
+    div.className = diffLineClass(line);
     div.textContent = line;
     pre.appendChild(div);
   }
@@ -28326,8 +28331,7 @@ ${text}` : text;
   renderDiff(pre, before, after) {
     const diff = before ? lineDiff(before, after) : after.split(/\r?\n/).map((line) => `+ ${line}`).join("\n");
     for (const line of diff.split("\n")) {
-      const cls = line.startsWith("+") ? "atl-diff-add" : line.startsWith("-") ? "atl-diff-del" : "atl-diff-ctx";
-      pre.createDiv({ cls, text: line });
+      pre.createDiv({ cls: diffLineClass(line), text: line });
     }
   }
   async ensureSession() {

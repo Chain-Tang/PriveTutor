@@ -9,6 +9,7 @@ import { setIcon, setTooltip } from "obsidian";
 import { t } from "./i18n.js";
 import type { AnchorMark } from "./decorations-plan.js";
 import type { DialogueTurn } from "./model.js";
+import { diffLineClass } from "./line-diff.js";
 
 /**
  * The outcome of one in-card dialogue turn. `edit` is present only when the
@@ -287,11 +288,7 @@ function appendEditCard(
   pre.className = "atl-diff";
   for (const line of edit.diff.split("\n")) {
     const div = document.createElement("div");
-    div.className = line.startsWith("+")
-      ? "atl-diff-add"
-      : line.startsWith("-")
-        ? "atl-diff-del"
-        : "atl-diff-ctx";
+    div.className = diffLineClass(line);
     div.textContent = line;
     pre.appendChild(div);
   }
