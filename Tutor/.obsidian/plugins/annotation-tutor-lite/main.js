@@ -7363,7 +7363,7 @@ __export(main_exports, {
   default: () => AnnotationTutorLitePlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian11 = require("obsidian");
+var import_obsidian12 = require("obsidian");
 
 // src/model.ts
 var annotationStatuses = [
@@ -21918,6 +21918,14 @@ var memoryCellStatusSchema = external_exports.enum([
   "superseded",
   "archived"
 ]);
+var reviewStateSchema = external_exports.object({
+  ease: external_exports.number().min(1),
+  intervalDays: external_exports.number().min(0),
+  reps: external_exports.number().min(0),
+  lapses: external_exports.number().min(0),
+  dueAt: external_exports.string().min(1),
+  lastReviewedAt: external_exports.string().min(1).optional()
+});
 var memoryCellSchema = external_exports.object({
   id: idSchema.regex(/^(?:CELL|MEM)-[A-Za-z0-9_-]+$/),
   type: cellTypeSchema,
@@ -21932,6 +21940,7 @@ var memoryCellSchema = external_exports.object({
   validUntil: isoDateSchema.optional(),
   supersedes: external_exports.array(idSchema).optional(),
   agentGuidance: external_exports.string().trim().min(1).optional(),
+  review: reviewStateSchema.optional(),
   createdAt: isoDateSchema,
   updatedAt: isoDateSchema
 });
@@ -22800,6 +22809,14 @@ function serializeMemoryCell(cell, memoryRoot = "Agent Memory") {
     ...cell.validFrom ? { valid_from: cell.validFrom } : {},
     ...cell.validUntil ? { valid_until: cell.validUntil } : {},
     ...cell.supersedes ? { supersedes: cell.supersedes } : {},
+    ...cell.review ? {
+      srs_ease: cell.review.ease,
+      srs_interval: cell.review.intervalDays,
+      srs_reps: cell.review.reps,
+      srs_lapses: cell.review.lapses,
+      srs_due: cell.review.dueAt,
+      ...cell.review.lastReviewedAt ? { srs_last: cell.review.lastReviewedAt } : {}
+    } : {},
     created_at: cell.createdAt,
     updated_at: cell.updatedAt
   };
@@ -22837,10 +22854,23 @@ function parseMemoryCellFile(markdown) {
     ...typeof document2.data.valid_from === "string" ? { validFrom: document2.data.valid_from } : {},
     ...typeof document2.data.valid_until === "string" ? { validUntil: document2.data.valid_until } : {},
     ...Array.isArray(document2.data.supersedes) ? { supersedes: stringArray(document2.data.supersedes) } : {},
-    ...section(document2.body, "Agent Guidance") ? { agentGuidance: section(document2.body, "Agent Guidance") } : {}
+    ...section(document2.body, "Agent Guidance") ? { agentGuidance: section(document2.body, "Agent Guidance") } : {},
+    ...typeof document2.data.srs_due === "string" ? {
+      review: {
+        ease: numberOr(document2.data.srs_ease, 2.5),
+        intervalDays: numberOr(document2.data.srs_interval, 0),
+        reps: numberOr(document2.data.srs_reps, 0),
+        lapses: numberOr(document2.data.srs_lapses, 0),
+        dueAt: document2.data.srs_due,
+        ...typeof document2.data.srs_last === "string" ? { lastReviewedAt: document2.data.srs_last } : {}
+      }
+    } : {}
   };
   const parsed = memoryCellSchema.safeParse(candidate);
   return parsed.success ? parsed.data : null;
+}
+function numberOr(value, fallback) {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
 function parseLegacyMemoryCell(markdown) {
   const block = extractBlocks(markdown, "memory-cell")[0];
@@ -24824,6 +24854,23 @@ var VaultStore = class {
       serializeMemoryCell(cell, this.memoryRoot())
     );
   }
+  /** Persist a new spaced-repetition schedule onto a cell, preserving its body. */
+  async updateCellSchedule(cellId, review) {
+    const path = `${this.memoryCellsDir()}/${cellId}.md`;
+    const file2 = this.fileAt(path);
+    if (!file2) return null;
+    let result = null;
+    await this.app.vault.process(file2, (data) => {
+      const existing = parseMemoryCellFile(data);
+      if (!existing) return data;
+      const next = { ...existing, review, updatedAt: nowIso() };
+      const out = serializeMemoryCell(next, this.memoryRoot());
+      result = parseMemoryCellFile(out);
+      return out;
+    });
+    this.markWritten(path);
+    return result;
+  }
   /**
    * Rebuild the auto-generated scenes from the current cells (a scene per concept
    * with two or more cells). Hand-authored scenes (without the `auto` tag) are
@@ -25369,6 +25416,30 @@ var en = {
   "settings.tab.scenes": "Scenes",
   "settings.tab.profile": "Profile",
   "settings.tab.proposals": "Proposals",
+  "settings.tab.feedback": "Learning",
+  "common.close": "Close",
+  "cmd.reviewDue": "Review due cells",
+  "set.enableSpacedReview": "Spaced review (forgetting curve)",
+  "set.enableSpacedReviewDesc": "Schedule memory cells with SM-2 and show a due counter in the status bar.",
+  "set.enableWeaknessTraining": "Targeted weakness training",
+  "set.enableWeaknessTrainingDesc": "Let the agent generate practice questions focused on your weak cells.",
+  "set.enableLearningSummary": "Periodic learning summary",
+  "set.enableLearningSummaryDesc": "Generate a summary of your strengths, weaknesses, and problem-solving methods.",
+  "set.enableStrengthReinforcement": "Strength reinforcement",
+  "set.enableStrengthReinforcementDesc": "Suggest next steps that build on what you already understand well.",
+  "review.start": "Start review ({count} due)",
+  "review.progress": "{done} / {total}",
+  "review.show": "Show answer",
+  "review.open": "Open cell",
+  "review.noAnswer": "(no summary)",
+  "review.grade.again": "Again",
+  "review.grade.hard": "Hard",
+  "review.grade.good": "Good",
+  "review.grade.easy": "Easy",
+  "review.doneTitle": "Review complete",
+  "review.done": "Reviewed {count} cells.",
+  "notice.reviewDisabled": "Enable spaced review in Settings \u2192 Learning first.",
+  "notice.reviewNoneDue": "Nothing is due for review right now.",
   "settings.libraryStats": "Memory library",
   "settings.counts": "{annotations} annotations \xB7 {cells} cells \xB7 {scenes} scenes \xB7 {proposals} proposals",
   "settings.openOverview": "Open overview",
@@ -25648,6 +25719,30 @@ var zhCn = {
   "settings.tab.scenes": "\u5B66\u4E60\u573A\u666F",
   "settings.tab.profile": "\u7528\u6237\u753B\u50CF",
   "settings.tab.proposals": "\u5F85\u786E\u8BA4",
+  "settings.tab.feedback": "\u5B66\u4E60",
+  "common.close": "\u5173\u95ED",
+  "cmd.reviewDue": "\u590D\u4E60\u5230\u671F\u7684\u8BB0\u5FC6\u5355\u5143",
+  "set.enableSpacedReview": "\u95F4\u9694\u590D\u4E60\uFF08\u9057\u5FD8\u66F2\u7EBF\uFF09",
+  "set.enableSpacedReviewDesc": "\u7528 SM-2 \u7B97\u6CD5\u4E3A\u8BB0\u5FC6\u5355\u5143\u5B89\u6392\u590D\u4E60\uFF0C\u5E76\u5728\u72B6\u6001\u680F\u663E\u793A\u5230\u671F\u6570\u91CF\u3002",
+  "set.enableWeaknessTraining": "\u9488\u5BF9\u8584\u5F31\u70B9\u8BAD\u7EC3",
+  "set.enableWeaknessTrainingDesc": "\u8BA9\u52A9\u624B\u9488\u5BF9\u4F60\u7684\u8584\u5F31\u5355\u5143\u751F\u6210\u7EC3\u4E60\u9898\u3002",
+  "set.enableLearningSummary": "\u5B9A\u671F\u5B66\u4E60\u603B\u7ED3",
+  "set.enableLearningSummaryDesc": "\u751F\u6210\u4F60\u7684\u4F18\u52BF\u3001\u52A3\u52BF\u548C\u89E3\u9898\u65B9\u6CD5\u7684\u603B\u7ED3\u3002",
+  "set.enableStrengthReinforcement": "\u4F18\u52BF\u5F3A\u5316",
+  "set.enableStrengthReinforcementDesc": "\u57FA\u4E8E\u4F60\u5DF2\u638C\u63E1\u7684\u5185\u5BB9\uFF0C\u5EFA\u8BAE\u8FDB\u4E00\u6B65\u6DF1\u5165\u7684\u65B9\u5411\u3002",
+  "review.start": "\u5F00\u59CB\u590D\u4E60\uFF08{count} \u4E2A\u5230\u671F\uFF09",
+  "review.progress": "{done} / {total}",
+  "review.show": "\u663E\u793A\u7B54\u6848",
+  "review.open": "\u6253\u5F00\u5355\u5143",
+  "review.noAnswer": "\uFF08\u65E0\u6458\u8981\uFF09",
+  "review.grade.again": "\u91CD\u6765",
+  "review.grade.hard": "\u8F83\u96BE",
+  "review.grade.good": "\u826F\u597D",
+  "review.grade.easy": "\u5BB9\u6613",
+  "review.doneTitle": "\u590D\u4E60\u5B8C\u6210",
+  "review.done": "\u5DF2\u590D\u4E60 {count} \u4E2A\u5355\u5143\u3002",
+  "notice.reviewDisabled": "\u8BF7\u5148\u5728 \u8BBE\u7F6E \u2192 \u5B66\u4E60 \u4E2D\u542F\u7528\u95F4\u9694\u590D\u4E60\u3002",
+  "notice.reviewNoneDue": "\u5F53\u524D\u6CA1\u6709\u5230\u671F\u9700\u8981\u590D\u4E60\u7684\u5185\u5BB9\u3002",
   "settings.libraryStats": "\u8BB0\u5FC6\u5E93",
   "settings.counts": "{annotations} \u6761\u6279\u6CE8 \xB7 {cells} \u4E2A Cell \xB7 {scenes} \u4E2A Scene \xB7 {proposals} \u6761\u5F85\u786E\u8BA4",
   "settings.openOverview": "\u6253\u5F00\u603B\u89C8",
@@ -25843,6 +25938,29 @@ var zhTw = {
   "delete.body": "\u5C07\u522A\u9664 {id} \u53CA\u5176\u8A18\u61B6\u6A94\u6848\u3002\u4F86\u6E90\u6587\u4EF6\u4E0D\u6703\u88AB\u522A\u9664\u3002",
   "delete.confirm": "\u522A\u9664",
   "common.cancel": "\u53D6\u6D88",
+  "common.close": "\u95DC\u9589",
+  "cmd.reviewDue": "\u8907\u7FD2\u5230\u671F\u7684\u8A18\u61B6\u55AE\u5143",
+  "set.enableSpacedReview": "\u9593\u9694\u8907\u7FD2\uFF08\u907A\u5FD8\u66F2\u7DDA\uFF09",
+  "set.enableSpacedReviewDesc": "\u7528 SM-2 \u6F14\u7B97\u6CD5\u70BA\u8A18\u61B6\u55AE\u5143\u5B89\u6392\u8907\u7FD2\uFF0C\u4E26\u5728\u72C0\u614B\u5217\u986F\u793A\u5230\u671F\u6578\u91CF\u3002",
+  "set.enableWeaknessTraining": "\u91DD\u5C0D\u5F31\u9EDE\u8A13\u7DF4",
+  "set.enableWeaknessTrainingDesc": "\u8B93\u52A9\u624B\u91DD\u5C0D\u4F60\u7684\u5F31\u9805\u55AE\u5143\u7522\u751F\u7DF4\u7FD2\u984C\u3002",
+  "set.enableLearningSummary": "\u5B9A\u671F\u5B78\u7FD2\u7E3D\u7D50",
+  "set.enableLearningSummaryDesc": "\u7522\u751F\u4F60\u7684\u512A\u52E2\u3001\u5F31\u9EDE\u8207\u89E3\u984C\u65B9\u6CD5\u7684\u7E3D\u7D50\u3002",
+  "set.enableStrengthReinforcement": "\u512A\u52E2\u5F37\u5316",
+  "set.enableStrengthReinforcementDesc": "\u4F9D\u4F60\u5DF2\u638C\u63E1\u7684\u5167\u5BB9\uFF0C\u5EFA\u8B70\u9032\u4E00\u6B65\u6DF1\u5165\u7684\u65B9\u5411\u3002",
+  "review.start": "\u958B\u59CB\u8907\u7FD2\uFF08{count} \u500B\u5230\u671F\uFF09",
+  "review.progress": "{done} / {total}",
+  "review.show": "\u986F\u793A\u7B54\u6848",
+  "review.open": "\u958B\u555F\u55AE\u5143",
+  "review.noAnswer": "\uFF08\u7121\u6458\u8981\uFF09",
+  "review.grade.again": "\u91CD\u4F86",
+  "review.grade.hard": "\u8F03\u96E3",
+  "review.grade.good": "\u826F\u597D",
+  "review.grade.easy": "\u5BB9\u6613",
+  "review.doneTitle": "\u8907\u7FD2\u5B8C\u6210",
+  "review.done": "\u5DF2\u8907\u7FD2 {count} \u500B\u55AE\u5143\u3002",
+  "notice.reviewDisabled": "\u8ACB\u5148\u5728 \u8A2D\u5B9A \u2192 Learning \u4E2D\u555F\u7528\u9593\u9694\u8907\u7FD2\u3002",
+  "notice.reviewNoneDue": "\u76EE\u524D\u6C92\u6709\u5230\u671F\u9700\u8981\u8907\u7FD2\u7684\u5167\u5BB9\u3002",
   "panel.settings": "\u8A2D\u5B9A",
   "panel.placeholder": "\u6211\u5C0D\u9019\u90E8\u5206\u7684\u7406\u89E3\u662F\u2026\u2026",
   "panel.save": "\u5132\u5B58",
@@ -26066,6 +26184,29 @@ var ja = {
   "delete.body": "{id} \u3068\u305D\u306E\u30E1\u30E2\u30EA\u30D5\u30A1\u30A4\u30EB\u3092\u524A\u9664\u3057\u307E\u3059\u3002\u30BD\u30FC\u30B9\u6587\u66F8\u306F\u524A\u9664\u3055\u308C\u307E\u305B\u3093\u3002",
   "delete.confirm": "\u524A\u9664",
   "common.cancel": "\u30AD\u30E3\u30F3\u30BB\u30EB",
+  "common.close": "\u9589\u3058\u308B",
+  "cmd.reviewDue": "\u671F\u9650\u306E\u6765\u305F\u30BB\u30EB\u3092\u5FA9\u7FD2",
+  "set.enableSpacedReview": "\u9593\u9694\u53CD\u5FA9\uFF08\u5FD8\u5374\u66F2\u7DDA\uFF09",
+  "set.enableSpacedReviewDesc": "SM-2 \u3067\u30E1\u30E2\u30EA\u30BB\u30EB\u306E\u5FA9\u7FD2\u3092\u4E88\u5B9A\u3057\u3001\u30B9\u30C6\u30FC\u30BF\u30B9\u30D0\u30FC\u306B\u671F\u9650\u6570\u3092\u8868\u793A\u3057\u307E\u3059\u3002",
+  "set.enableWeaknessTraining": "\u5F31\u70B9\u30C8\u30EC\u30FC\u30CB\u30F3\u30B0",
+  "set.enableWeaknessTrainingDesc": "\u5F31\u3044\u30BB\u30EB\u306B\u7D5E\u3063\u305F\u7DF4\u7FD2\u554F\u984C\u3092\u30A8\u30FC\u30B8\u30A7\u30F3\u30C8\u306B\u751F\u6210\u3055\u305B\u307E\u3059\u3002",
+  "set.enableLearningSummary": "\u5B9A\u671F\u7684\u306A\u5B66\u7FD2\u30B5\u30DE\u30EA\u30FC",
+  "set.enableLearningSummaryDesc": "\u5F37\u307F\u30FB\u5F31\u307F\u30FB\u554F\u984C\u89E3\u6C7A\u306E\u65B9\u6CD5\u306E\u30B5\u30DE\u30EA\u30FC\u3092\u751F\u6210\u3057\u307E\u3059\u3002",
+  "set.enableStrengthReinforcement": "\u5F37\u307F\u306E\u5F37\u5316",
+  "set.enableStrengthReinforcementDesc": "\u65E2\u306B\u7406\u89E3\u3067\u304D\u3066\u3044\u308B\u5185\u5BB9\u3092\u8E0F\u307E\u3048\u3001\u6B21\u306E\u4E00\u6B69\u3092\u63D0\u6848\u3057\u307E\u3059\u3002",
+  "review.start": "\u5FA9\u7FD2\u3092\u958B\u59CB\uFF08{count} \u4EF6\uFF09",
+  "review.progress": "{done} / {total}",
+  "review.show": "\u7B54\u3048\u3092\u8868\u793A",
+  "review.open": "\u30BB\u30EB\u3092\u958B\u304F",
+  "review.noAnswer": "\uFF08\u8981\u7D04\u306A\u3057\uFF09",
+  "review.grade.again": "\u3082\u3046\u4E00\u5EA6",
+  "review.grade.hard": "\u96E3\u3057\u3044",
+  "review.grade.good": "\u666E\u901A",
+  "review.grade.easy": "\u7C21\u5358",
+  "review.doneTitle": "\u5FA9\u7FD2\u5B8C\u4E86",
+  "review.done": "{count} \u4EF6\u306E\u30BB\u30EB\u3092\u5FA9\u7FD2\u3057\u307E\u3057\u305F\u3002",
+  "notice.reviewDisabled": "\u8A2D\u5B9A \u2192 Learning \u3067\u9593\u9694\u53CD\u5FA9\u3092\u6709\u52B9\u306B\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
+  "notice.reviewNoneDue": "\u73FE\u5728\u3001\u5FA9\u7FD2\u306E\u671F\u9650\u304C\u6765\u3066\u3044\u308B\u3082\u306E\u306F\u3042\u308A\u307E\u305B\u3093\u3002",
   "panel.settings": "\u8A2D\u5B9A",
   "panel.placeholder": "\u79C1\u306E\u7406\u89E3\u3067\u306F\u2026\u2026",
   "panel.save": "\u4FDD\u5B58",
@@ -26243,6 +26384,58 @@ function queryScenes(scenes, query = {}) {
     if (query.tag && !scene.tags.includes(query.tag)) return false;
     return true;
   }).sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+}
+
+// src/srs.ts
+var DEFAULT_EASE = 2.5;
+var MIN_EASE = 1.3;
+var DAY_MS = 864e5;
+var QUALITY = { again: 2, hard: 3, good: 4, easy: 5 };
+function initReviewState(now) {
+  return { ease: DEFAULT_EASE, intervalDays: 0, reps: 0, lapses: 0, dueAt: now };
+}
+function scheduleNext(state, grade, now) {
+  const q = QUALITY[grade];
+  const ease = Math.max(
+    MIN_EASE,
+    round2(state.ease + (0.1 - (5 - q) * (0.08 + (5 - q) * 0.02)))
+  );
+  if (q < 3) {
+    return {
+      ease,
+      intervalDays: 1,
+      reps: 0,
+      lapses: state.lapses + 1,
+      dueAt: addDays(now, 1),
+      lastReviewedAt: now
+    };
+  }
+  let intervalDays;
+  if (state.reps === 0) intervalDays = 1;
+  else if (state.reps === 1) intervalDays = 6;
+  else intervalDays = Math.max(1, Math.round(state.intervalDays * ease));
+  return {
+    ease,
+    intervalDays,
+    reps: state.reps + 1,
+    lapses: state.lapses,
+    dueAt: addDays(now, intervalDays),
+    lastReviewedAt: now
+  };
+}
+function isDue(state, now) {
+  return Date.parse(state.dueAt) <= Date.parse(now);
+}
+function dueCells(cells, now) {
+  return cells.filter((cell) => !cell.review || isDue(cell.review, now));
+}
+function addDays(iso, days) {
+  const base = Date.parse(iso);
+  const start = Number.isFinite(base) ? base : Date.now();
+  return new Date(start + days * DAY_MS).toISOString();
+}
+function round2(value) {
+  return Math.round(value * 100) / 100;
 }
 
 // src/views/annotation-table.ts
@@ -26487,6 +26680,10 @@ var DEFAULT_SETTINGS = {
   dictionaryLanguage: "",
   pretranslateOnOpen: true,
   pretranslateChunkChars: 3e3,
+  enableSpacedReview: false,
+  enableWeaknessTraining: false,
+  enableLearningSummary: false,
+  enableStrengthReinforcement: false,
   cardGeom: {}
 };
 function normalizeMemoryRoot(value) {
@@ -26550,6 +26747,14 @@ function migrateSettings(loaded) {
   if (typeof settings.pretranslateOnOpen !== "boolean") {
     settings.pretranslateOnOpen = DEFAULT_SETTINGS.pretranslateOnOpen;
   }
+  for (const flag of [
+    "enableSpacedReview",
+    "enableWeaknessTraining",
+    "enableLearningSummary",
+    "enableStrengthReinforcement"
+  ]) {
+    if (typeof settings[flag] !== "boolean") settings[flag] = DEFAULT_SETTINGS[flag];
+  }
   if (typeof settings.pretranslateChunkChars !== "number" || !Number.isFinite(settings.pretranslateChunkChars) || settings.pretranslateChunkChars < MIN_PRETRANSLATE_CHUNK_CHARS) {
     settings.pretranslateChunkChars = DEFAULT_SETTINGS.pretranslateChunkChars;
   } else {
@@ -26570,6 +26775,7 @@ var PAGES = [
   "annotations",
   "cells",
   "scenes",
+  "feedback",
   "profile",
   "proposals"
 ];
@@ -26611,6 +26817,7 @@ var AnnotationTutorLiteSettingTab = class extends import_obsidian3.PluginSetting
     if (this.activePage === "annotations") this.renderAnnotations(body);
     if (this.activePage === "cells") this.renderCells(body);
     if (this.activePage === "scenes") this.renderScenes(body);
+    if (this.activePage === "feedback") this.renderFeedback(body);
     if (this.activePage === "profile") this.renderProfile(body);
     if (this.activePage === "proposals") void this.renderProposals(body);
   }
@@ -27156,13 +27363,33 @@ var AnnotationTutorLiteSettingTab = class extends import_obsidian3.PluginSetting
       });
     });
   }
-  addToggle(container, i18nKey, key) {
+  addToggle(container, i18nKey, key, rerender = false) {
     new import_obsidian3.Setting(container).setName(t(i18nKey)).setDesc(t(`${i18nKey}Desc`)).addToggle(
       (toggle) => toggle.setValue(this.plugin.settings[key]).onChange(async (value) => {
         this.plugin.settings[key] = value;
         await this.plugin.persistSettings();
         this.plugin.applyDisplaySettings();
+        if (rerender) this.display();
       })
+    );
+  }
+  renderFeedback(container) {
+    this.addToggle(container, "set.enableSpacedReview", "enableSpacedReview", true);
+    if (this.plugin.settings.enableSpacedReview) {
+      const due = dueCells(
+        this.plugin.librarySnapshot.cells,
+        (/* @__PURE__ */ new Date()).toISOString()
+      );
+      this.actionRow(container, [
+        [t("review.start", { count: due.length }), () => this.plugin.reviewDueCells()]
+      ]);
+    }
+    this.addToggle(container, "set.enableWeaknessTraining", "enableWeaknessTraining");
+    this.addToggle(container, "set.enableLearningSummary", "enableLearningSummary");
+    this.addToggle(
+      container,
+      "set.enableStrengthReinforcement",
+      "enableStrengthReinforcement"
     );
   }
   actionRow(container, actions) {
@@ -29009,6 +29236,89 @@ function lastLine2(text) {
   return last.length > 200 ? `${last.slice(0, 197)}\u2026` : last;
 }
 
+// src/views/review-modal.ts
+var import_obsidian8 = require("obsidian");
+var GRADES = ["again", "hard", "good", "easy"];
+var ReviewModal = class extends import_obsidian8.Modal {
+  constructor(app, cards, handlers2) {
+    super(app);
+    this.cards = cards;
+    this.handlers = handlers2;
+  }
+  cards;
+  handlers;
+  index = 0;
+  reviewed = 0;
+  onOpen() {
+    this.modalEl.addClass("atl-review-modal");
+    this.renderCurrent();
+  }
+  renderCurrent() {
+    const { contentEl } = this;
+    contentEl.empty();
+    const card = this.cards[this.index];
+    if (!card) {
+      contentEl.createEl("h3", { text: t("review.doneTitle") });
+      contentEl.createEl("p", {
+        text: t("review.done", { count: this.reviewed })
+      });
+      const close = contentEl.createDiv({ cls: "atl-actions" }).createEl("button", {
+        text: t("common.close"),
+        cls: "mod-cta"
+      });
+      close.onclick = () => this.close();
+      return;
+    }
+    contentEl.createEl("div", {
+      cls: "atl-muted atl-review-progress",
+      text: t("review.progress", { done: this.index + 1, total: this.cards.length })
+    });
+    contentEl.createEl("h3", { text: card.concept, cls: "atl-review-concept" });
+    const answer = contentEl.createEl("blockquote", {
+      cls: "atl-review-answer",
+      text: card.summary || t("review.noAnswer")
+    });
+    answer.hide();
+    const open = contentEl.createEl("button", {
+      cls: "atl-link-button atl-review-open",
+      text: t("review.open")
+    });
+    open.onclick = () => void this.handlers.open(card.path);
+    open.hide();
+    const actions = contentEl.createDiv({ cls: "atl-actions atl-review-actions" });
+    const reveal = actions.createEl("button", {
+      text: t("review.show"),
+      cls: "mod-cta"
+    });
+    reveal.onclick = () => {
+      answer.show();
+      open.show();
+      actions.empty();
+      for (const grade of GRADES) {
+        const button = actions.createEl("button", { text: t(`review.grade.${grade}`) });
+        if (grade === "good") button.addClass("mod-cta");
+        button.onclick = () => void this.gradeAndAdvance(card, grade);
+      }
+    };
+  }
+  async gradeAndAdvance(card, grade) {
+    await this.handlers.grade(card, grade);
+    this.reviewed += 1;
+    this.index += 1;
+    this.renderCurrent();
+  }
+  onClose() {
+    this.contentEl.empty();
+  }
+};
+function setDueBadge(el, count, onClick) {
+  el.empty();
+  if (count <= 0) return;
+  (0, import_obsidian8.setIcon)(el.createSpan({ cls: "atl-due-icon" }), "alarm-clock");
+  el.createSpan({ text: ` ${count}` });
+  el.onclick = onClick;
+}
+
 // src/translate.ts
 function nativeLanguageName(locale) {
   switch (locale) {
@@ -29240,8 +29550,8 @@ var import_promises = require("node:fs/promises");
 var import_node_os3 = require("node:os");
 
 // src/views/annotation-modal.ts
-var import_obsidian8 = require("obsidian");
-var ConfirmModal = class extends import_obsidian8.Modal {
+var import_obsidian9 = require("obsidian");
+var ConfirmModal = class extends import_obsidian9.Modal {
   constructor(app, options) {
     super(app);
     this.options = options;
@@ -29266,7 +29576,7 @@ var ConfirmModal = class extends import_obsidian8.Modal {
     this.contentEl.empty();
   }
 };
-var DetailModal = class extends import_obsidian8.Modal {
+var DetailModal = class extends import_obsidian9.Modal {
   constructor(app, annotation, handlers2) {
     super(app);
     this.annotation = annotation;
@@ -29311,8 +29621,8 @@ var DetailModal = class extends import_obsidian8.Modal {
     const button = container.createEl("button", {
       cls: danger ? "atl-iconbtn atl-iconbtn--danger" : "atl-iconbtn"
     });
-    (0, import_obsidian8.setIcon)(button, icon);
-    (0, import_obsidian8.setTooltip)(button, tooltip);
+    (0, import_obsidian9.setIcon)(button, icon);
+    (0, import_obsidian9.setTooltip)(button, tooltip);
     button.onclick = () => {
       void Promise.resolve(handler()).then(() => this.close());
     };
@@ -29328,7 +29638,7 @@ function section2(parent, title) {
 }
 
 // src/views/note-panel.ts
-var import_obsidian9 = require("obsidian");
+var import_obsidian10 = require("obsidian");
 var FloatingNotePanel = class _FloatingNotePanel {
   constructor(options) {
     this.options = options;
@@ -29391,15 +29701,15 @@ var FloatingNotePanel = class _FloatingNotePanel {
   iconButton(container, icon, tooltip, handler, variant = void 0) {
     const cls = variant ? `atl-iconbtn atl-iconbtn--${variant}` : "atl-iconbtn";
     const button = container.createEl("button", { cls });
-    (0, import_obsidian9.setIcon)(button, icon);
-    (0, import_obsidian9.setTooltip)(button, tooltip);
+    (0, import_obsidian10.setIcon)(button, icon);
+    (0, import_obsidian10.setTooltip)(button, tooltip);
     button.onclick = () => void handler();
   }
   async submit(askAgent) {
     if (this.submitted) return;
     const note = this.note.trim();
     if (!note) {
-      new import_obsidian9.Notice(t("notice.writeFirst"));
+      new import_obsidian10.Notice(t("notice.writeFirst"));
       return;
     }
     this.submitted = true;
@@ -29464,7 +29774,7 @@ function clamp(value, min, max) {
 }
 
 // src/views/note-popover.ts
-var import_obsidian10 = require("obsidian");
+var import_obsidian11 = require("obsidian");
 var NotePopover = class _NotePopover {
   static current = null;
   el;
@@ -29515,8 +29825,8 @@ var NotePopover = class _NotePopover {
     const button = container.createEl("button", {
       cls: danger ? "atl-iconbtn atl-iconbtn--danger" : "atl-iconbtn"
     });
-    (0, import_obsidian10.setIcon)(button, icon);
-    (0, import_obsidian10.setTooltip)(button, tooltip);
+    (0, import_obsidian11.setIcon)(button, icon);
+    (0, import_obsidian11.setTooltip)(button, tooltip);
     button.onclick = () => {
       this.close();
       void handler();
@@ -29590,7 +29900,7 @@ function confidenceForCorrectness(correctness) {
       return 0.6;
   }
 }
-var AnnotationTutorLitePlugin = class extends import_obsidian11.Plugin {
+var AnnotationTutorLitePlugin = class extends import_obsidian12.Plugin {
   settings = { ...DEFAULT_SETTINGS };
   indexTable = new IndexTable();
   librarySnapshot = emptyLibrarySnapshot();
@@ -29625,6 +29935,8 @@ var AnnotationTutorLitePlugin = class extends import_obsidian11.Plugin {
   // A compact "done/total" pre-translation indicator in the status bar (bottom
   // edge), so the background glossing doesn't interrupt reading with notices.
   pretranslateStatusEl = null;
+  // A "N due" spaced-repetition indicator in the status bar (when enabled).
+  reviewStatusEl = null;
   /**
    * HTTP transport for the direct-API engine. Routes through Obsidian's
    * `requestUrl` (which bypasses CORS, unlike a renderer `fetch`), and races a
@@ -29637,7 +29949,7 @@ var AnnotationTutorLitePlugin = class extends import_obsidian11.Plugin {
     });
     try {
       return await Promise.race([
-        (0, import_obsidian11.requestUrl)({
+        (0, import_obsidian12.requestUrl)({
           url: req.url,
           method: req.method,
           headers: req.headers,
@@ -29669,7 +29981,7 @@ var AnnotationTutorLitePlugin = class extends import_obsidian11.Plugin {
       ask: (id, note) => void this.askFromCard(id, note),
       discuss: (id) => void this.openChatForAnnotation(id),
       reply: (id, message) => this.replyInAnnotation(id, message),
-      render: (el, markdown) => import_obsidian11.MarkdownRenderer.render(this.app, markdown, el, "", this),
+      render: (el, markdown) => import_obsidian12.MarkdownRenderer.render(this.app, markdown, el, "", this),
       saveCell: (id) => void this.createCellFromAnnotation(id),
       remove: (id) => this.confirmDeleteById(id),
       settings: () => this.openSettings()
@@ -29702,6 +30014,8 @@ var AnnotationTutorLitePlugin = class extends import_obsidian11.Plugin {
     });
     this.pretranslateStatusEl = this.addStatusBarItem();
     this.pretranslateStatusEl.addClass("atl-pretranslate-status");
+    this.reviewStatusEl = this.addStatusBarItem();
+    this.reviewStatusEl.addClass("atl-due-status");
     this.registerCommands();
     this.registerEvent(
       this.app.workspace.on(
@@ -29712,7 +30026,7 @@ var AnnotationTutorLitePlugin = class extends import_obsidian11.Plugin {
     this.registerEvent(
       this.app.workspace.on("active-leaf-change", (leaf) => {
         const view = leaf?.view;
-        if (view instanceof import_obsidian11.MarkdownView && view.file) {
+        if (view instanceof import_obsidian12.MarkdownView && view.file) {
           this.lastMarkdownView = view;
           if (view.file.extension === "md") void this.maybePretranslate(view.file);
         }
@@ -29729,7 +30043,7 @@ var AnnotationTutorLitePlugin = class extends import_obsidian11.Plugin {
     );
     this.registerEvent(
       this.app.workspace.on("file-open", (file2) => {
-        if (file2 instanceof import_obsidian11.TFile && file2.extension === "md") {
+        if (file2 instanceof import_obsidian12.TFile && file2.extension === "md") {
           void this.maybePretranslate(file2);
         }
       })
@@ -29792,11 +30106,11 @@ var AnnotationTutorLitePlugin = class extends import_obsidian11.Plugin {
     if (raw && normalized !== raw) {
       return { ok: false, message: t("notice.invalidMemoryRoot") };
     }
-    const next = (0, import_obsidian11.normalizePath)(normalized);
-    const current2 = (0, import_obsidian11.normalizePath)(this.settings.memoryRoot);
+    const next = (0, import_obsidian12.normalizePath)(normalized);
+    const current2 = (0, import_obsidian12.normalizePath)(this.settings.memoryRoot);
     if (next === current2) return { ok: true };
     const target = this.app.vault.getAbstractFileByPath(next);
-    if (target && (!(target instanceof import_obsidian11.TFolder) || target.children.length > 0)) {
+    if (target && (!(target instanceof import_obsidian12.TFolder) || target.children.length > 0)) {
       return {
         ok: false,
         message: t("notice.memoryRootConflict", { path: next })
@@ -29821,6 +30135,7 @@ var AnnotationTutorLitePlugin = class extends import_obsidian11.Plugin {
    */
   applyDisplaySettings() {
     void this.refreshDecorations();
+    this.refreshDueBadge();
   }
   // --- lifecycle -------------------------------------------------------------
   async initialize() {
@@ -29856,18 +30171,18 @@ var AnnotationTutorLitePlugin = class extends import_obsidian11.Plugin {
   /** Connectivity check: refresh the model list and report the outcome. */
   async testAgentConnection() {
     const command = this.settings.agentCommand.trim() || "opencode";
-    const progress = new import_obsidian11.Notice(t("notice.agentTesting", { command }), 0);
+    const progress = new import_obsidian12.Notice(t("notice.agentTesting", { command }), 0);
     try {
       const result = await this.refreshAvailableModels();
       if (result.ok) {
-        new import_obsidian11.Notice(
+        new import_obsidian12.Notice(
           t("notice.agentTestOk", {
             count: result.models.length,
             free: freeModels(result.models).length
           })
         );
       } else {
-        new import_obsidian11.Notice(
+        new import_obsidian12.Notice(
           t("notice.agentTestFailed", {
             command,
             detail: result.error ?? String(result.models.length)
@@ -29911,16 +30226,16 @@ var AnnotationTutorLitePlugin = class extends import_obsidian11.Plugin {
   /** Connectivity check for the direct-API engine: list the endpoint's models. */
   async testApiConnection() {
     if (!this.settings.apiKey.trim()) {
-      new import_obsidian11.Notice(t("notice.apiKeyMissing"));
+      new import_obsidian12.Notice(t("notice.apiKeyMissing"));
       return;
     }
-    const progress = new import_obsidian11.Notice(
+    const progress = new import_obsidian12.Notice(
       t("notice.apiTesting", { url: this.settings.apiBaseUrl }),
       0
     );
     try {
       const result = await this.refreshApiModels();
-      new import_obsidian11.Notice(
+      new import_obsidian12.Notice(
         result.ok ? t("notice.apiTestOk", { count: result.models.length }) : t("notice.apiTestFailed", {
           detail: result.error ?? `HTTP ${result.status ?? "?"}`
         })
@@ -30010,8 +30325,13 @@ var AnnotationTutorLitePlugin = class extends import_obsidian11.Plugin {
       callback: () => {
         const record2 = this.getActiveRecord();
         if (record2) void this.createCellFromAnnotation(record2.annotationId);
-        else new import_obsidian11.Notice(t("notice.placeCursor"));
+        else new import_obsidian12.Notice(t("notice.placeCursor"));
       }
+    });
+    this.addCommand({
+      id: "review-due-cells",
+      name: t("cmd.reviewDue"),
+      callback: () => void this.reviewDueCells()
     });
   }
   addEditorMenuItems(menu, editor, info) {
@@ -30023,20 +30343,20 @@ var AnnotationTutorLitePlugin = class extends import_obsidian11.Plugin {
   async createAnnotationFromEditor(editor, info) {
     const file2 = info.file;
     if (!file2) {
-      new import_obsidian11.Notice(t("notice.openMdFirst"));
+      new import_obsidian12.Notice(t("notice.openMdFirst"));
       return;
     }
     const start = editor.getCursor("from");
     const end = editor.getCursor("to");
     const selectedText = editor.getSelection();
     if (crossesMarkdownBlocks(editor, start, end)) {
-      new import_obsidian11.Notice(t("notice.cannotCrossBlocks"));
+      new import_obsidian12.Notice(t("notice.cannotCrossBlocks"));
       return;
     }
     const block = findBlock(editor, start.line);
     const sourceText = selectedText || lineTextWithoutBlockId(editor.getLine(start.line));
     if (!sourceText) {
-      new import_obsidian11.Notice(t("notice.selectOrCursor"));
+      new import_obsidian12.Notice(t("notice.selectOrCursor"));
       return;
     }
     FloatingNotePanel.open({
@@ -30094,7 +30414,7 @@ var AnnotationTutorLitePlugin = class extends import_obsidian11.Plugin {
     const content = await this.app.vault.read(file2);
     const lines = content.split(/\r?\n/);
     if (!lines.some((line) => line.includes(selectedText))) {
-      new import_obsidian11.Notice(t("notice.couldNotLocate"));
+      new import_obsidian12.Notice(t("notice.couldNotLocate"));
       return;
     }
     FloatingNotePanel.open({
@@ -30109,7 +30429,7 @@ var AnnotationTutorLitePlugin = class extends import_obsidian11.Plugin {
     const lines = content.split(/\r?\n/);
     const lineIndex = lines.findIndex((line) => line.includes(selectedText));
     if (lineIndex < 0) {
-      new import_obsidian11.Notice(t("notice.couldNotLocate"));
+      new import_obsidian12.Notice(t("notice.couldNotLocate"));
       return;
     }
     const block = findBlockInLines(lines, lineIndex);
@@ -30153,12 +30473,12 @@ var AnnotationTutorLitePlugin = class extends import_obsidian11.Plugin {
     );
     this.indexTable.upsert(record2);
     await this.commit();
-    new import_obsidian11.Notice(t("notice.created", { id: annotation.id }));
+    new import_obsidian12.Notice(t("notice.created", { id: annotation.id }));
     if (askAgent) await this.askAgent(record2);
   }
   /** Right-click in Reading view with a selection offers "Add annotation". */
   onReadingContextMenu(event) {
-    const view = this.app.workspace.getActiveViewOfType(import_obsidian11.MarkdownView);
+    const view = this.app.workspace.getActiveViewOfType(import_obsidian12.MarkdownView);
     if (!view?.file || view.getMode() !== "preview") return;
     const scroller = view.contentEl.querySelector(".markdown-preview-view");
     if (!scroller || !scroller.contains(event.target)) return;
@@ -30166,7 +30486,7 @@ var AnnotationTutorLitePlugin = class extends import_obsidian11.Plugin {
     if (!selection) return;
     event.preventDefault();
     this.lastContextPos = { x: event.clientX, y: event.clientY };
-    const menu = new import_obsidian11.Menu();
+    const menu = new import_obsidian12.Menu();
     menu.addItem(
       (item) => item.setTitle(t("menu.addAnnotation")).setIcon("highlighter").onClick(() => void this.createAnnotationFromReading(view, selection))
     );
@@ -30211,14 +30531,14 @@ var AnnotationTutorLitePlugin = class extends import_obsidian11.Plugin {
     if (this.settings.autoRunAgent) {
       await this.runAgentForRecord(record2, taskId);
     } else {
-      new import_obsidian11.Notice(t("notice.asked", { id: record2.annotationId }));
+      new import_obsidian12.Notice(t("notice.asked", { id: record2.annotationId }));
     }
   }
   /** Tidy the agent inbox (remove duplicates, finished, and dangling tasks). */
   async cleanInbox() {
     const removed = await this.store.cleanInbox(this.indexTable.ids());
     await this.rebuildIndex(false);
-    new import_obsidian11.Notice(t("notice.inboxCleaned", { count: removed }));
+    new import_obsidian12.Notice(t("notice.inboxCleaned", { count: removed }));
   }
   /**
    * Review one annotation in a single model call: send the rubric + selected
@@ -30229,13 +30549,13 @@ var AnnotationTutorLitePlugin = class extends import_obsidian11.Plugin {
    */
   async runAgentForRecord(record2, taskId) {
     if (this.runningAgents.has(record2.annotationId)) {
-      new import_obsidian11.Notice(t("notice.agentBusy", { id: record2.annotationId }));
+      new import_obsidian12.Notice(t("notice.agentBusy", { id: record2.annotationId }));
       return;
     }
     const useApi = this.settings.reviewEngine === "api";
     const engineLabel = useApi ? this.settings.apiModel.trim() || "API" : this.settings.agentCommand.trim() || "opencode";
     this.runningAgents.add(record2.annotationId);
-    const progress = new import_obsidian11.Notice(
+    const progress = new import_obsidian12.Notice(
       t("notice.agentRunning", { id: record2.annotationId, command: engineLabel }),
       0
     );
@@ -30250,30 +30570,30 @@ var AnnotationTutorLitePlugin = class extends import_obsidian11.Plugin {
       const id = record2.annotationId;
       switch (outcome.kind) {
         case "needs-key":
-          new import_obsidian11.Notice(t("notice.apiKeyMissing"));
+          new import_obsidian12.Notice(t("notice.apiKeyMissing"));
           return;
         case "timeout":
-          new import_obsidian11.Notice(t("notice.agentTimeout", { id }));
+          new import_obsidian12.Notice(t("notice.agentTimeout", { id }));
           return;
         case "failed":
           console.error("[Annotation Tutor Lite] review failed", outcome.detail);
-          new import_obsidian11.Notice(t("notice.agentFailed", { id, detail: outcome.detail }));
+          new import_obsidian12.Notice(t("notice.agentFailed", { id, detail: outcome.detail }));
           return;
         case "empty":
           console.error("[Annotation Tutor Lite] review produced no text");
-          new import_obsidian11.Notice(t("notice.agentNoReview", { id }));
+          new import_obsidian12.Notice(t("notice.agentNoReview", { id }));
           return;
         case "ok":
           await this.store.writeReview(id, outcome.reviewText);
           await this.store.setTaskStatus(taskId, "completed");
           await this.autoSaveCellFromReview(record2, outcome.reviewText);
           await this.rebuildIndex(false);
-          new import_obsidian11.Notice(t("notice.agentDone", { id }));
+          new import_obsidian12.Notice(t("notice.agentDone", { id }));
           return;
       }
     } catch (error51) {
       console.error("[Annotation Tutor Lite] agent run error", error51);
-      new import_obsidian11.Notice(
+      new import_obsidian12.Notice(
         t("notice.agentFailed", {
           id: record2.annotationId,
           detail: error51 instanceof Error ? error51.message : String(error51)
@@ -30336,7 +30656,7 @@ var AnnotationTutorLitePlugin = class extends import_obsidian11.Plugin {
   async askAgentForCurrent() {
     const record2 = this.getActiveRecord();
     if (!record2) {
-      new import_obsidian11.Notice(t("notice.placeCursor"));
+      new import_obsidian12.Notice(t("notice.placeCursor"));
       return;
     }
     await this.askAgent(record2);
@@ -30345,7 +30665,7 @@ var AnnotationTutorLitePlugin = class extends import_obsidian11.Plugin {
     await navigator.clipboard.writeText(
       copyablePrompt(record2, this.settings.reviewLanguage)
     );
-    new import_obsidian11.Notice(t("notice.promptCopied"));
+    new import_obsidian12.Notice(t("notice.promptCopied"));
   }
   // --- inline translation (Alt+T) --------------------------------------------
   /** The reader's native language name for inline glosses. */
@@ -30377,7 +30697,7 @@ var AnnotationTutorLitePlugin = class extends import_obsidian11.Plugin {
     if (!this.replaceSelection(editor, from, to, selection, replacement)) {
       return false;
     }
-    new import_obsidian11.Notice(t("notice.translateDone"));
+    new import_obsidian12.Notice(t("notice.translateDone"));
     return true;
   }
   /**
@@ -30407,7 +30727,7 @@ var AnnotationTutorLitePlugin = class extends import_obsidian11.Plugin {
   async pretranslateActiveFile() {
     const file2 = this.app.workspace.getActiveFile();
     if (!file2 || file2.extension !== "md") {
-      new import_obsidian11.Notice(t("notice.openMdFirst"));
+      new import_obsidian12.Notice(t("notice.openMdFirst"));
       return;
     }
     await this.pretranslateFile(file2, true);
@@ -30420,7 +30740,7 @@ var AnnotationTutorLitePlugin = class extends import_obsidian11.Plugin {
    */
   async pretranslateFile(file2, manual) {
     if (this.pretranslating.has(file2.path)) {
-      if (manual) new import_obsidian11.Notice(t("notice.pretranslateBusy"));
+      if (manual) new import_obsidian12.Notice(t("notice.pretranslateBusy"));
       return;
     }
     const content = await this.app.vault.cachedRead(file2);
@@ -30428,7 +30748,7 @@ var AnnotationTutorLitePlugin = class extends import_obsidian11.Plugin {
     const existing = this.glossaryCache.get(file2.path);
     if (existing && existing.hash === hash2 && existing.complete) {
       if (manual) {
-        new import_obsidian11.Notice(
+        new import_obsidian12.Notice(
           t("notice.pretranslateUpToDate", { count: existing.entries.length })
         );
       }
@@ -30440,7 +30760,7 @@ var AnnotationTutorLitePlugin = class extends import_obsidian11.Plugin {
     ).slice(0, MAX_PRETRANSLATE_BATCHES);
     if (batches.length === 0) {
       this.glossaryCache.set(file2.path, buildFileGlossary(hash2, []));
-      if (manual) new import_obsidian11.Notice(t("notice.pretranslateEmpty"));
+      if (manual) new import_obsidian12.Notice(t("notice.pretranslateEmpty"));
       return;
     }
     this.pretranslating.add(file2.path);
@@ -30484,7 +30804,7 @@ var AnnotationTutorLitePlugin = class extends import_obsidian11.Plugin {
     }
     if (needsKey) {
       this.glossaryCache.set(file2.path, buildFileGlossary(hash2, entries));
-      if (manual) new import_obsidian11.Notice(t("notice.apiKeyMissing"));
+      if (manual) new import_obsidian12.Notice(t("notice.apiKeyMissing"));
       return;
     }
     const glossary = buildFileGlossary(hash2, entries);
@@ -30492,13 +30812,13 @@ var AnnotationTutorLitePlugin = class extends import_obsidian11.Plugin {
     const count = glossary.entries.length;
     if (!manual) return;
     if (count > 0) {
-      new import_obsidian11.Notice(
+      new import_obsidian12.Notice(
         failed > 0 ? t("notice.pretranslatePartial", { count, failed }) : t("notice.pretranslateDone", { count })
       );
     } else if (failed > 0) {
-      new import_obsidian11.Notice(t("notice.pretranslateFailed"));
+      new import_obsidian12.Notice(t("notice.pretranslateFailed"));
     } else {
-      new import_obsidian11.Notice(t("notice.pretranslateEmpty"));
+      new import_obsidian12.Notice(t("notice.pretranslateEmpty"));
     }
   }
   /** Show a compact "done/total" pre-translation counter in the status bar. */
@@ -30507,7 +30827,7 @@ var AnnotationTutorLitePlugin = class extends import_obsidian11.Plugin {
     if (!el) return;
     el.empty();
     if (total <= 0) return;
-    (0, import_obsidian11.setIcon)(el.createSpan({ cls: "atl-pretranslate-status-icon" }), "languages");
+    (0, import_obsidian12.setIcon)(el.createSpan({ cls: "atl-pretranslate-status-icon" }), "languages");
     el.createSpan({ text: ` ${done}/${total}` });
     el.setAttribute("aria-label", t("status.pretranslate"));
   }
@@ -30527,7 +30847,7 @@ var AnnotationTutorLitePlugin = class extends import_obsidian11.Plugin {
   async translateSelection(editor) {
     const selection = editor.getSelection();
     if (!selection.trim()) {
-      new import_obsidian11.Notice(t("notice.translateSelect"));
+      new import_obsidian12.Notice(t("notice.translateSelect"));
       return;
     }
     const from = editor.getCursor("from");
@@ -30535,7 +30855,7 @@ var AnnotationTutorLitePlugin = class extends import_obsidian11.Plugin {
     const target = this.dictionaryLanguageName();
     const mode = classifyTranslateSelection(selection);
     if (this.translateFromCache(editor, from, to, selection, mode)) return;
-    const progress = new import_obsidian11.Notice(t("notice.translating"), 0);
+    const progress = new import_obsidian12.Notice(t("notice.translating"), 0);
     try {
       const prompt = mode === "word" ? buildWordGlossPrompt(
         selection.trim(),
@@ -30550,13 +30870,13 @@ var AnnotationTutorLitePlugin = class extends import_obsidian11.Plugin {
       const wordGloss = mode === "word" ? cleanGloss(outcome.reviewText) : "";
       const replacement = mode === "word" ? formatWordGloss(selection, wordGloss) : stripWrapper(outcome.reviewText);
       if (!replacement.trim() || replacement === selection) {
-        new import_obsidian11.Notice(
+        new import_obsidian12.Notice(
           t("notice.translateFailed", { detail: t("notice.translateEmpty") })
         );
         return;
       }
       if (!this.replaceSelection(editor, from, to, selection, replacement)) {
-        new import_obsidian11.Notice(
+        new import_obsidian12.Notice(
           t("notice.translateFailed", { detail: t("chat.edit.notLocated") })
         );
         return;
@@ -30564,9 +30884,9 @@ var AnnotationTutorLitePlugin = class extends import_obsidian11.Plugin {
       if (mode === "word" && wordGloss) {
         this.cacheWordGloss(selection.trim(), wordGloss);
       }
-      new import_obsidian11.Notice(t("notice.translateDone"));
+      new import_obsidian12.Notice(t("notice.translateDone"));
     } catch (error51) {
-      new import_obsidian11.Notice(
+      new import_obsidian12.Notice(
         t("notice.translateFailed", {
           detail: error51 instanceof Error ? error51.message : String(error51)
         })
@@ -30593,18 +30913,18 @@ var AnnotationTutorLitePlugin = class extends import_obsidian11.Plugin {
   noticeForTranslate(outcome) {
     switch (outcome.kind) {
       case "needs-key":
-        new import_obsidian11.Notice(t("notice.apiKeyMissing"));
+        new import_obsidian12.Notice(t("notice.apiKeyMissing"));
         return;
       case "timeout":
-        new import_obsidian11.Notice(
+        new import_obsidian12.Notice(
           t("notice.translateFailed", { detail: t("notice.translateTimeout") })
         );
         return;
       case "failed":
-        new import_obsidian11.Notice(t("notice.translateFailed", { detail: outcome.detail }));
+        new import_obsidian12.Notice(t("notice.translateFailed", { detail: outcome.detail }));
         return;
       case "empty":
-        new import_obsidian11.Notice(
+        new import_obsidian12.Notice(
           t("notice.translateFailed", { detail: t("notice.translateEmpty") })
         );
         return;
@@ -30614,7 +30934,7 @@ var AnnotationTutorLitePlugin = class extends import_obsidian11.Plugin {
   async openDetail(record2) {
     const annotation = await this.store.readAnnotation(record2.annotationId);
     if (!annotation) {
-      new import_obsidian11.Notice(t("notice.fileUnavailable"));
+      new import_obsidian12.Notice(t("notice.fileUnavailable"));
       return;
     }
     new DetailModal(this.app, annotation, {
@@ -30629,7 +30949,7 @@ var AnnotationTutorLitePlugin = class extends import_obsidian11.Plugin {
   async editAnnotation(record2) {
     const annotation = await this.store.readAnnotation(record2.annotationId);
     if (!annotation) {
-      new import_obsidian11.Notice(t("notice.fileUnavailable"));
+      new import_obsidian12.Notice(t("notice.fileUnavailable"));
       return;
     }
     FloatingNotePanel.open({
@@ -30658,10 +30978,10 @@ var AnnotationTutorLitePlugin = class extends import_obsidian11.Plugin {
   async openInlineNote(id, anchorEl) {
     const record2 = this.indexTable.get(id);
     if (!record2) {
-      new import_obsidian11.Notice(t("notice.fileUnavailable"));
+      new import_obsidian12.Notice(t("notice.fileUnavailable"));
       return;
     }
-    const view = this.app.workspace.getActiveViewOfType(import_obsidian11.MarkdownView);
+    const view = this.app.workspace.getActiveViewOfType(import_obsidian12.MarkdownView);
     if (this.settings.marginComments && view) {
       if (view.getMode() === "preview") {
         this.readingRail.attach(view);
@@ -30682,7 +31002,7 @@ var AnnotationTutorLitePlugin = class extends import_obsidian11.Plugin {
     }
     const annotation = await this.store.readAnnotation(id);
     if (!annotation) {
-      new import_obsidian11.Notice(t("notice.fileUnavailable"));
+      new import_obsidian12.Notice(t("notice.fileUnavailable"));
       return;
     }
     NotePopover.open(anchorEl, annotation, {
@@ -30718,7 +31038,7 @@ var AnnotationTutorLitePlugin = class extends import_obsidian11.Plugin {
     }
     const text = (note ?? record2.userNote ?? "").trim();
     if (text && classifyIntent(text) === "write") {
-      new import_obsidian11.Notice(t("notice.cardBuild", { id }));
+      new import_obsidian12.Notice(t("notice.cardBuild", { id }));
       await this.openChatForAnnotation(id, { mode: "build", send: text });
       return;
     }
@@ -30863,23 +31183,23 @@ ${profile}
   async createCellFromAnnotation(id) {
     const record2 = this.indexTable.get(id);
     if (!record2) {
-      new import_obsidian11.Notice(t("notice.placeCursor"));
+      new import_obsidian12.Notice(t("notice.placeCursor"));
       return;
     }
-    const progress = new import_obsidian11.Notice(t("notice.cellDistilling"), 0);
+    const progress = new import_obsidian12.Notice(t("notice.cellDistilling"), 0);
     try {
       const cell = await this.distillCell(record2);
       if (!cell) {
-        new import_obsidian11.Notice(t("notice.cellFailed"));
+        new import_obsidian12.Notice(t("notice.cellFailed"));
         return;
       }
       await this.store.createMemoryCell(cell);
       await this.store.syncScenesFromCells();
       await this.rebuildIndex(false);
-      new import_obsidian11.Notice(t("notice.cellDone", { concept: cell.concept }));
+      new import_obsidian12.Notice(t("notice.cellDone", { concept: cell.concept }));
     } catch (error51) {
       console.error("[Annotation Tutor Lite] cell creation failed", error51);
-      new import_obsidian11.Notice(t("notice.cellFailed"));
+      new import_obsidian12.Notice(t("notice.cellFailed"));
     } finally {
       progress.hide();
     }
@@ -30929,6 +31249,7 @@ ${user}`
       sourceAnnotations: [record2.annotationId],
       tags: record2.concepts,
       confidence: asConfidence(parsed?.["confidence"]),
+      review: existing?.review ?? initReviewState(now),
       createdAt: existing?.createdAt ?? now,
       updatedAt: now
     };
@@ -30957,6 +31278,7 @@ ${user}`
       sourceAnnotations: [record2.annotationId],
       tags: record2.concepts,
       confidence: confidenceForCorrectness(review?.correctness),
+      review: initReviewState(now),
       createdAt: now,
       updatedAt: now
     };
@@ -31009,7 +31331,7 @@ ${user}`
     const marker = el.createSpan({ cls: "atl-marker" });
     marker.dataset["atlId"] = id;
     marker.setAttribute("aria-label", t("action.edit"));
-    (0, import_obsidian11.setIcon)(marker, "message-square");
+    (0, import_obsidian12.setIcon)(marker, "message-square");
     marker.onclick = (event) => {
       event.preventDefault();
       void this.openInlineNote(id, marker);
@@ -31040,26 +31362,26 @@ ${user}`
       void this.persistSettings();
     }
     await this.commit();
-    new import_obsidian11.Notice(t("notice.deleted", { id: record2.annotationId }));
+    new import_obsidian12.Notice(t("notice.deleted", { id: record2.annotationId }));
   }
   // --- jump to source + repair ----------------------------------------------
   async openAnnotation(record2) {
     const annotation = await this.store.readAnnotation(record2.annotationId);
     if (!annotation) {
-      new import_obsidian11.Notice(t("notice.fileUnavailable"));
+      new import_obsidian12.Notice(t("notice.fileUnavailable"));
       return;
     }
     const file2 = this.fileAt(annotation.sourceFile);
     if (!file2 || file2.extension !== "md") {
       await this.markSourceMissing(annotation);
-      new import_obsidian11.Notice(t("notice.sourceMissing"));
+      new import_obsidian12.Notice(t("notice.sourceMissing"));
       return;
     }
     const content = await this.app.vault.read(file2);
     const resolution = resolveAnchor(content, annotation.anchor);
     if (resolution.strategy === "not-found" || resolution.line === void 0) {
       await this.markSourceMissing(annotation);
-      new import_obsidian11.Notice(t("notice.couldNotLocate"));
+      new import_obsidian12.Notice(t("notice.couldNotLocate"));
       return;
     }
     if (resolution.requiresConfirmation) {
@@ -31113,7 +31435,7 @@ ${user}`
   async reveal(file2, line, selectedText) {
     const leaf = this.app.workspace.getLeaf(false);
     await leaf.openFile(file2);
-    const view = this.app.workspace.getActiveViewOfType(import_obsidian11.MarkdownView);
+    const view = this.app.workspace.getActiveViewOfType(import_obsidian12.MarkdownView);
     if (!view) return;
     view.editor.setCursor({ line, ch: 0 });
     view.editor.scrollIntoView(
@@ -31129,10 +31451,11 @@ ${user}`
     this.indexTable.replaceAll(this.librarySnapshot.annotations);
     this.refreshDashboard();
     this.settingTab?.refresh();
+    this.refreshDueBadge();
     await this.refreshDecorations();
     if (notify) {
       const errors = this.librarySnapshot.diagnostics.length;
-      new import_obsidian11.Notice(
+      new import_obsidian12.Notice(
         errors > 0 ? t("notice.indexedErrors", {
           count: this.librarySnapshot.annotations.length,
           errors
@@ -31170,12 +31493,12 @@ ${user}`
   }
   async approveProposal(id) {
     const result = await this.store.approveProposal(id);
-    new import_obsidian11.Notice(result.ok ? t("notice.proposalApproved") : result.message);
+    new import_obsidian12.Notice(result.ok ? t("notice.proposalApproved") : result.message);
     await this.rebuildIndex(false);
   }
   async rejectProposal(id) {
     const result = await this.store.rejectProposal(id);
-    new import_obsidian11.Notice(result.ok ? t("notice.proposalRejected") : result.message);
+    new import_obsidian12.Notice(result.ok ? t("notice.proposalRejected") : result.message);
     await this.rebuildIndex(false);
   }
   async proposalDiff(proposal) {
@@ -31184,7 +31507,7 @@ ${user}`
   }
   async migrateLegacyAnnotations() {
     const result = await this.store.migrateLegacyAnnotations();
-    new import_obsidian11.Notice(
+    new import_obsidian12.Notice(
       t("notice.migrated", {
         migrated: result.migrated,
         errors: result.errors.length
@@ -31192,11 +31515,50 @@ ${user}`
     );
     await this.rebuildIndex(false);
   }
+  // --- spaced repetition -----------------------------------------------------
+  /**
+   * Open the SM-2 review modal over the cells due now. Gated by the opt-in
+   * `enableSpacedReview` setting; each grade reschedules the cell (srs.ts) and
+   * the file + in-memory schedule are updated so the due counter falls live.
+   */
+  async reviewDueCells() {
+    if (!this.settings.enableSpacedReview) {
+      new import_obsidian12.Notice(t("notice.reviewDisabled"));
+      return;
+    }
+    const due = dueCells(this.librarySnapshot.cells, nowIso());
+    if (due.length === 0) {
+      new import_obsidian12.Notice(t("notice.reviewNoneDue"));
+      return;
+    }
+    const cards = due.map((cell) => ({
+      cellId: cell.id,
+      concept: cell.concept,
+      summary: cell.summary,
+      path: cell.path
+    }));
+    new ReviewModal(this.app, cards, {
+      open: (path) => this.openLibraryPath(path),
+      grade: async (card, grade) => {
+        const cell = this.librarySnapshot.cells.find((c) => c.id === card.cellId);
+        const next = scheduleNext(cell?.review ?? initReviewState(nowIso()), grade, nowIso());
+        await this.store.updateCellSchedule(card.cellId, next);
+        if (cell) cell.review = next;
+        this.refreshDueBadge();
+      }
+    }).open();
+  }
+  /** Refresh the status-bar "N due" badge (hidden unless spaced review is on). */
+  refreshDueBadge() {
+    if (!this.reviewStatusEl) return;
+    const count = this.settings.enableSpacedReview ? dueCells(this.librarySnapshot.cells, nowIso()).length : 0;
+    setDueBadge(this.reviewStatusEl, count, () => void this.reviewDueCells());
+  }
   // --- notebook --------------------------------------------------------------
   /** Open the study notebook, building it first if it doesn't exist yet. */
   async openNotebook() {
     const path = this.store.notebookIndexPath();
-    if (this.app.vault.getAbstractFileByPath(path) instanceof import_obsidian11.TFile) {
+    if (this.app.vault.getAbstractFileByPath(path) instanceof import_obsidian12.TFile) {
       await this.openLibraryPath(path);
       return;
     }
@@ -31210,20 +31572,20 @@ ${user}`
   async buildNotebook() {
     const records = this.indexTable.all();
     if (records.length === 0) {
-      new import_obsidian11.Notice(t("notice.notebookEmpty"));
+      new import_obsidian12.Notice(t("notice.notebookEmpty"));
       return;
     }
-    const progress = new import_obsidian11.Notice(t("notice.notebookBuilding"), 0);
+    const progress = new import_obsidian12.Notice(t("notice.notebookBuilding"), 0);
     try {
       const result = await this.store.writeNotebook(records);
       progress.hide();
-      new import_obsidian11.Notice(
+      new import_obsidian12.Notice(
         t("notice.notebookDone", { pages: result.pages, chapters: result.chapters })
       );
       await this.openLibraryPath(result.path);
     } catch (error51) {
       progress.hide();
-      new import_obsidian11.Notice(
+      new import_obsidian12.Notice(
         t("notice.notebookFailed", {
           detail: error51 instanceof Error ? error51.message : String(error51)
         })
@@ -31238,7 +31600,7 @@ ${user}`
   async enrichNotebook() {
     const records = this.indexTable.all();
     if (records.length === 0) {
-      new import_obsidian11.Notice(t("notice.notebookEmpty"));
+      new import_obsidian12.Notice(t("notice.notebookEmpty"));
       return;
     }
     const byDoc = /* @__PURE__ */ new Map();
@@ -31248,7 +31610,7 @@ ${user}`
       else byDoc.set(record2.sourceFile, [record2]);
     }
     const docs = [...byDoc.entries()];
-    const progress = new import_obsidian11.Notice(
+    const progress = new import_obsidian12.Notice(
       t("notice.notebookEnriching", { done: 0, total: docs.length }),
       0
     );
@@ -31265,13 +31627,13 @@ ${user}`
       }
       const result = await this.store.writeNotebook(records, synthesis);
       progress.hide();
-      new import_obsidian11.Notice(
+      new import_obsidian12.Notice(
         t("notice.notebookDone", { pages: result.pages, chapters: result.chapters })
       );
       await this.openLibraryPath(result.path);
     } catch (error51) {
       progress.hide();
-      new import_obsidian11.Notice(
+      new import_obsidian12.Notice(
         t("notice.notebookFailed", {
           detail: error51 instanceof Error ? error51.message : String(error51)
         })
@@ -31340,7 +31702,7 @@ ${user}`);
    * prompt context don't vanish the moment the user clicks into the dialog).
    */
   async chatContext() {
-    const active = this.app.workspace.getActiveViewOfType(import_obsidian11.MarkdownView);
+    const active = this.app.workspace.getActiveViewOfType(import_obsidian12.MarkdownView);
     if (active?.file) this.lastMarkdownView = active;
     let view = active ?? this.lastMarkdownView;
     if (!view?.file) {
@@ -31380,7 +31742,7 @@ ${user}`);
   /** Read a note's full text by Vault path (for chat context / pinned annotation). */
   async noteContent(path) {
     const file2 = this.fileAt(path);
-    if (!(file2 instanceof import_obsidian11.TFile)) return "";
+    if (!(file2 instanceof import_obsidian12.TFile)) return "";
     try {
       return await this.app.vault.read(file2);
     } catch {
@@ -31394,7 +31756,7 @@ ${user}`);
    * the cursor. Otherwise the edit inserts at the cursor.
    */
   captureEditTarget(preferText) {
-    const view = this.app.workspace.getActiveViewOfType(import_obsidian11.MarkdownView) ?? this.lastMarkdownView;
+    const view = this.app.workspace.getActiveViewOfType(import_obsidian12.MarkdownView) ?? this.lastMarkdownView;
     if (!view?.file || !view.editor) return null;
     const editor = view.editor;
     const original = editor.getSelection();
@@ -31443,7 +31805,7 @@ ${user}`);
         const doc = editor.getValue();
         const idx = doc.indexOf(target.original);
         if (idx === -1) {
-          new import_obsidian11.Notice(t("chat.edit.notLocated"));
+          new import_obsidian12.Notice(t("chat.edit.notLocated"));
           return false;
         }
         editor.replaceRange(
@@ -31545,7 +31907,7 @@ ${user}`);
     }
   }
   async refreshDecorations() {
-    const view = this.app.workspace.getActiveViewOfType(import_obsidian11.MarkdownView);
+    const view = this.app.workspace.getActiveViewOfType(import_obsidian12.MarkdownView);
     if (!view?.file) {
       this.readingRail.detach();
       return;
@@ -31623,10 +31985,10 @@ ${user}`);
     }
     await this.persistSettings();
     await this.refreshDecorations();
-    new import_obsidian11.Notice(visible ? t("notice.marksHidden") : t("notice.marksShown"));
+    new import_obsidian12.Notice(visible ? t("notice.marksHidden") : t("notice.marksShown"));
   }
   getActiveRecord() {
-    const view = this.app.workspace.getActiveViewOfType(import_obsidian11.MarkdownView);
+    const view = this.app.workspace.getActiveViewOfType(import_obsidian12.MarkdownView);
     if (!view?.file) return null;
     const editor = view.editor;
     const block = findBlock(editor, editor.getCursor().line);
@@ -31639,7 +32001,7 @@ ${user}`);
   }
   fileAt(path) {
     const file2 = this.app.vault.getAbstractFileByPath(path);
-    return file2 instanceof import_obsidian11.TFile ? file2 : null;
+    return file2 instanceof import_obsidian12.TFile ? file2 : null;
   }
 };
 function underlineFirst(el, text, cls, id, onClick) {

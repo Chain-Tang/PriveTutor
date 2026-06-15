@@ -13,6 +13,7 @@ import type {
   MemoryProposal,
   Task
 } from "./model.js";
+import type { ReviewState } from "./srs.js";
 import type { AnnotationTutorLiteSettings } from "./settings.js";
 import {
   type AnnotationPatch,
@@ -331,6 +332,27 @@ export class VaultStore {
       `${this.memoryCellsDir()}/${cell.id}.md`,
       serializeMemoryCell(cell, this.memoryRoot())
     );
+  }
+
+  /** Persist a new spaced-repetition schedule onto a cell, preserving its body. */
+  public async updateCellSchedule(
+    cellId: string,
+    review: ReviewState
+  ): Promise<MemoryCell | null> {
+    const path = `${this.memoryCellsDir()}/${cellId}.md`;
+    const file = this.fileAt(path);
+    if (!file) return null;
+    let result: MemoryCell | null = null;
+    await this.app.vault.process(file, (data) => {
+      const existing = parseMemoryCellFile(data);
+      if (!existing) return data;
+      const next: MemoryCell = { ...existing, review, updatedAt: nowIso() };
+      const out = serializeMemoryCell(next, this.memoryRoot());
+      result = parseMemoryCellFile(out);
+      return out;
+    });
+    this.markWritten(path);
+    return result;
   }
 
   /**

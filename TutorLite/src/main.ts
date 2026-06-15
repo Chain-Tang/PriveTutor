@@ -98,6 +98,12 @@ import { tutorSystemPrompt, type ChatContext } from "./chat-prompt.js";
 import { classifyIntent, extractAnnotationId } from "./intent.js";
 import { buildEditInstruction, extractEdit } from "./edit-parse.js";
 import { detectLanguageName } from "./lang.js";
+import { dueCells, initReviewState, scheduleNext } from "./srs.js";
+import {
+  ReviewModal,
+  setDueBadge,
+  type ReviewCard
+} from "./views/review-modal.js";
 import {
   buildPassageGlossPrompt,
   buildWordGlossPrompt,
@@ -246,6 +252,8 @@ export default class AnnotationTutorLitePlugin extends Plugin {
   // A compact "done/total" pre-translation indicator in the status bar (bottom
   // edge), so the background glossing doesn't interrupt reading with notices.
   private pretranslateStatusEl: HTMLElement | null = null;
+  // A "N due" spaced-repetition indicator in the status bar (when enabled).
+  private reviewStatusEl: HTMLElement | null = null;
 
   /**
    * HTTP transport for the direct-API engine. Routes through Obsidian's
@@ -332,6 +340,8 @@ export default class AnnotationTutorLitePlugin extends Plugin {
     });
     this.pretranslateStatusEl = this.addStatusBarItem();
     this.pretranslateStatusEl.addClass("atl-pretranslate-status");
+    this.reviewStatusEl = this.addStatusBarItem();
+    this.reviewStatusEl.addClass("atl-due-status");
 
     this.registerCommands();
     this.registerEvent(
@@ -464,6 +474,7 @@ export default class AnnotationTutorLitePlugin extends Plugin {
    */
   public applyDisplaySettings(): void {
     void this.refreshDecorations();
+    this.refreshDueBadge();
   }
 
   // --- lifecycle -------------------------------------------------------------
@@ -672,6 +683,11 @@ export default class AnnotationTutorLitePlugin extends Plugin {
         if (record) void this.createCellFromAnnotation(record.annotationId);
         else new Notice(t("notice.placeCursor"));
       }
+    });
+    this.addCommand({
+      id: "review-due-cells",
+      name: t("cmd.reviewDue"),
+      callback: () => void this.reviewDueCells()
     });
   }
 
@@ -1781,6 +1797,7 @@ export default class AnnotationTutorLitePlugin extends Plugin {
       sourceAnnotations: [record.annotationId],
       tags: record.concepts,
       confidence: asConfidence(parsed?.["confidence"]),
+      review: existing?.review ?? initReviewState(now),
       createdAt: existing?.createdAt ?? now,
       updatedAt: now
     };
@@ -1816,6 +1833,7 @@ export default class AnnotationTutorLitePlugin extends Plugin {
       sourceAnnotations: [record.annotationId],
       tags: record.concepts,
       confidence: confidenceForCorrectness(review?.correctness),
+      review: initReviewState(now),
       createdAt: now,
       updatedAt: now
     };
@@ -2021,6 +2039,7 @@ export default class AnnotationTutorLitePlugin extends Plugin {
     this.indexTable.replaceAll(this.librarySnapshot.annotations);
     this.refreshDashboard();
     this.settingTab?.refresh();
+    this.refreshDueBadge();
     await this.refreshDecorations();
     if (notify) {
       const errors = this.librarySnapshot.diagnostics.length;
@@ -2103,6 +2122,50 @@ export default class AnnotationTutorLitePlugin extends Plugin {
       })
     );
     await this.rebuildIndex(false);
+  }
+
+  // --- spaced repetition -----------------------------------------------------
+
+  /**
+   * Open the SM-2 review modal over the cells due now. Gated by the opt-in
+   * `enableSpacedReview` setting; each grade reschedules the cell (srs.ts) and
+   * the file + in-memory schedule are updated so the due counter falls live.
+   */
+  public async reviewDueCells(): Promise<void> {
+    if (!this.settings.enableSpacedReview) {
+      new Notice(t("notice.reviewDisabled"));
+      return;
+    }
+    const due = dueCells(this.librarySnapshot.cells, nowIso());
+    if (due.length === 0) {
+      new Notice(t("notice.reviewNoneDue"));
+      return;
+    }
+    const cards: ReviewCard[] = due.map((cell) => ({
+      cellId: cell.id,
+      concept: cell.concept,
+      summary: cell.summary,
+      path: cell.path
+    }));
+    new ReviewModal(this.app, cards, {
+      open: (path) => this.openLibraryPath(path),
+      grade: async (card, grade) => {
+        const cell = this.librarySnapshot.cells.find((c) => c.id === card.cellId);
+        const next = scheduleNext(cell?.review ?? initReviewState(nowIso()), grade, nowIso());
+        await this.store.updateCellSchedule(card.cellId, next);
+        if (cell) cell.review = next; // keep the snapshot in step so the badge falls
+        this.refreshDueBadge();
+      }
+    }).open();
+  }
+
+  /** Refresh the status-bar "N due" badge (hidden unless spaced review is on). */
+  private refreshDueBadge(): void {
+    if (!this.reviewStatusEl) return;
+    const count = this.settings.enableSpacedReview
+      ? dueCells(this.librarySnapshot.cells, nowIso()).length
+      : 0;
+    setDueBadge(this.reviewStatusEl, count, () => void this.reviewDueCells());
   }
 
   // --- notebook --------------------------------------------------------------

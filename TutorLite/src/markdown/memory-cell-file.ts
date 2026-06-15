@@ -36,6 +36,18 @@ export function serializeMemoryCell(
     ...(cell.validFrom ? { valid_from: cell.validFrom } : {}),
     ...(cell.validUntil ? { valid_until: cell.validUntil } : {}),
     ...(cell.supersedes ? { supersedes: cell.supersedes } : {}),
+    ...(cell.review
+      ? {
+          srs_ease: cell.review.ease,
+          srs_interval: cell.review.intervalDays,
+          srs_reps: cell.review.reps,
+          srs_lapses: cell.review.lapses,
+          srs_due: cell.review.dueAt,
+          ...(cell.review.lastReviewedAt
+            ? { srs_last: cell.review.lastReviewedAt }
+            : {})
+        }
+      : {}),
     created_at: cell.createdAt,
     updated_at: cell.updatedAt
   };
@@ -84,10 +96,28 @@ export function parseMemoryCellFile(markdown: string): MemoryCell | null {
       : {}),
     ...(section(document.body, "Agent Guidance")
       ? { agentGuidance: section(document.body, "Agent Guidance") }
+      : {}),
+    ...(typeof document.data.srs_due === "string"
+      ? {
+          review: {
+            ease: numberOr(document.data.srs_ease, 2.5),
+            intervalDays: numberOr(document.data.srs_interval, 0),
+            reps: numberOr(document.data.srs_reps, 0),
+            lapses: numberOr(document.data.srs_lapses, 0),
+            dueAt: document.data.srs_due,
+            ...(typeof document.data.srs_last === "string"
+              ? { lastReviewedAt: document.data.srs_last }
+              : {})
+          }
+        }
       : {})
   };
   const parsed = memoryCellSchema.safeParse(candidate);
   return parsed.success ? parsed.data : null;
+}
+
+function numberOr(value: unknown, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
 
 function parseLegacyMemoryCell(markdown: string): MemoryCell | null {

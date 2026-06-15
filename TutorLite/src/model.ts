@@ -4,6 +4,8 @@
 // Obsidian imports so the parsing/serialising logic around them can be unit
 // tested in a plain Node environment.
 
+import type { ReviewState } from "./srs.js";
+
 export type AnnotationStatus =
   | "draft"
   | "saved"
@@ -129,6 +131,8 @@ export type MemoryCell = {
   validUntil?: string;
   supersedes?: string[];
   agentGuidance?: string;
+  /** Spaced-repetition schedule (SM-2); absent on cells never scheduled. */
+  review?: ReviewState;
   createdAt: string;
   updatedAt: string;
 };

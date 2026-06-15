@@ -24,6 +24,17 @@ export const memoryCellStatusSchema = z.enum([
   "archived"
 ]);
 
+// SM-2 spaced-repetition schedule. Dates are plain strings (the runtime always
+// writes ISO via nowIso) so a hand-edited cell never fails to parse the whole cell.
+export const reviewStateSchema = z.object({
+  ease: z.number().min(1),
+  intervalDays: z.number().min(0),
+  reps: z.number().min(0),
+  lapses: z.number().min(0),
+  dueAt: z.string().min(1),
+  lastReviewedAt: z.string().min(1).optional()
+});
+
 export const memoryCellSchema = z.object({
   id: idSchema.regex(/^(?:CELL|MEM)-[A-Za-z0-9_-]+$/),
   type: cellTypeSchema,
@@ -40,6 +51,7 @@ export const memoryCellSchema = z.object({
   validUntil: isoDateSchema.optional(),
   supersedes: z.array(idSchema).optional(),
   agentGuidance: z.string().trim().min(1).optional(),
+  review: reviewStateSchema.optional(),
   createdAt: isoDateSchema,
   updatedAt: isoDateSchema
 });

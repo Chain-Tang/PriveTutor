@@ -96,6 +96,15 @@ export type AnnotationTutorLiteSettings = {
    * output length, not input context). Oversized paragraphs are still sliced.
    */
   pretranslateChunkChars: number;
+  /**
+   * Opt-in learning-feedback mechanisms, all OFF by default (the learner activates
+   * them). `enableSpacedReview` surfaces the SM-2 due queue + review command;
+   * the rest gate agent-assisted feedback commands.
+   */
+  enableSpacedReview: boolean;
+  enableWeaknessTraining: boolean;
+  enableLearningSummary: boolean;
+  enableStrengthReinforcement: boolean;
   /** Per-annotation margin-card geometry, so each card keeps its own size/place. */
   cardGeom: Record<string, CardGeom>;
 };
@@ -135,6 +144,10 @@ export const DEFAULT_SETTINGS: AnnotationTutorLiteSettings = {
   dictionaryLanguage: "",
   pretranslateOnOpen: true,
   pretranslateChunkChars: 3000,
+  enableSpacedReview: false,
+  enableWeaknessTraining: false,
+  enableLearningSummary: false,
+  enableStrengthReinforcement: false,
   cardGeom: {}
 };
 
@@ -219,6 +232,14 @@ export function migrateSettings(loaded: unknown): AnnotationTutorLiteSettings {
   }
   if (typeof settings.pretranslateOnOpen !== "boolean") {
     settings.pretranslateOnOpen = DEFAULT_SETTINGS.pretranslateOnOpen;
+  }
+  for (const flag of [
+    "enableSpacedReview",
+    "enableWeaknessTraining",
+    "enableLearningSummary",
+    "enableStrengthReinforcement"
+  ] as const) {
+    if (typeof settings[flag] !== "boolean") settings[flag] = DEFAULT_SETTINGS[flag];
   }
   if (
     typeof settings.pretranslateChunkChars !== "number" ||

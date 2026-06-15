@@ -4,6 +4,7 @@ import { t } from "./i18n.js";
 import { isFreeModel } from "./agent-models.js";
 import { queryCells, queryScenes } from "./library-query.js";
 import type { CellQuery, SceneQuery } from "./library-query.js";
+import { dueCells } from "./srs.js";
 import { AnnotationTable } from "./views/annotation-table.js";
 import {
   DEFAULT_SETTINGS,
@@ -34,6 +35,7 @@ type SettingsPage =
   | "annotations"
   | "cells"
   | "scenes"
+  | "feedback"
   | "profile"
   | "proposals";
 
@@ -42,6 +44,7 @@ const PAGES: SettingsPage[] = [
   "annotations",
   "cells",
   "scenes",
+  "feedback",
   "profile",
   "proposals"
 ];
@@ -91,6 +94,7 @@ export class AnnotationTutorLiteSettingTab extends PluginSettingTab {
     if (this.activePage === "annotations") this.renderAnnotations(body);
     if (this.activePage === "cells") this.renderCells(body);
     if (this.activePage === "scenes") this.renderScenes(body);
+    if (this.activePage === "feedback") this.renderFeedback(body);
     if (this.activePage === "profile") this.renderProfile(body);
     if (this.activePage === "proposals") void this.renderProposals(body);
   }
@@ -781,7 +785,8 @@ export class AnnotationTutorLiteSettingTab extends PluginSettingTab {
   private addToggle(
     container: HTMLElement,
     i18nKey: string,
-    key: keyof AnnotationTutorLiteSettings
+    key: keyof AnnotationTutorLiteSettings,
+    rerender = false
   ): void {
     new Setting(container)
       .setName(t(i18nKey))
@@ -793,8 +798,30 @@ export class AnnotationTutorLiteSettingTab extends PluginSettingTab {
             (this.plugin.settings[key] as boolean) = value;
             await this.plugin.persistSettings();
             this.plugin.applyDisplaySettings();
+            if (rerender) this.display();
           })
       );
+  }
+
+  private renderFeedback(container: HTMLElement): void {
+    // Opt-in learning-feedback mechanisms — all OFF by default.
+    this.addToggle(container, "set.enableSpacedReview", "enableSpacedReview", true);
+    if (this.plugin.settings.enableSpacedReview) {
+      const due = dueCells(
+        this.plugin.librarySnapshot.cells,
+        new Date().toISOString()
+      );
+      this.actionRow(container, [
+        [t("review.start", { count: due.length }), () => this.plugin.reviewDueCells()]
+      ]);
+    }
+    this.addToggle(container, "set.enableWeaknessTraining", "enableWeaknessTraining");
+    this.addToggle(container, "set.enableLearningSummary", "enableLearningSummary");
+    this.addToggle(
+      container,
+      "set.enableStrengthReinforcement",
+      "enableStrengthReinforcement"
+    );
   }
 
   private actionRow(

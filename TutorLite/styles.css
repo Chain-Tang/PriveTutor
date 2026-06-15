@@ -843,6 +843,32 @@
   height: 14px;
 }
 
+/* Spaced-repetition "N due" status-bar badge (clickable). */
+.atl-due-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+.atl-due-status .svg-icon {
+  width: 14px;
+  height: 14px;
+}
+
+/* Review modal: concept prompt, revealed answer, grade buttons. */
+.atl-review-progress {
+  font-size: var(--font-ui-smaller);
+}
+.atl-review-concept {
+  margin: var(--size-2-2) 0;
+}
+.atl-review-answer {
+  white-space: pre-wrap;
+}
+.atl-review-actions {
+  flex-wrap: wrap;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .atl-popover,
   .atl-float-panel {
