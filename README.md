@@ -69,9 +69,14 @@ collect highlights. Each principle maps to a concrete feature:
 - 📓 **A Zettelkasten notebook.** One command assembles your studied documents into
   a slip-box: literature-note pages per source, structure-note chapters that link
   related reading, and an index — so connections between ideas surface on their own.
-- 🔁 **Reinforcement along the forgetting curve.** Cells track confidence and a
-  `needs_review` status — the foundation for spaced review of what hasn't yet stuck.
-  *(Automated review scheduling is on the roadmap.)*
+- 🔁 **Reinforcement along the forgetting curve.** Memory cells are scheduled with
+  the **SM-2** spaced-repetition algorithm (the SuperMemo/Anki scheme that counters
+  the Ebbinghaus forgetting curve); a status-bar counter shows what's due and a
+  review modal (Again / Hard / Good / Easy) re-schedules each cell.
+- 🎯 **Opt-in feedback (off by default).** Enable in *Settings → Learning*:
+  spaced-review reminders, targeted **weakness training** (AI practice on your weak
+  cells), a periodic **learning summary** (strengths / weaknesses / methods), and
+  **strength reinforcement** (next-step suggestions).
 
 All of it is plain, local Markdown you own — private, portable, and future-proof.
 

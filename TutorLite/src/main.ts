@@ -99,6 +99,7 @@ import { classifyIntent, extractAnnotationId } from "./intent.js";
 import { buildEditInstruction, extractEdit } from "./edit-parse.js";
 import { detectLanguageName } from "./lang.js";
 import { dueCells, initReviewState, scheduleNext } from "./srs.js";
+import { classifyCells } from "./learning.js";
 import {
   ReviewModal,
   setDueBadge,
@@ -688,6 +689,21 @@ export default class AnnotationTutorLitePlugin extends Plugin {
       id: "review-due-cells",
       name: t("cmd.reviewDue"),
       callback: () => void this.reviewDueCells()
+    });
+    this.addCommand({
+      id: "weakness-training",
+      name: t("cmd.weaknessTraining"),
+      callback: () => void this.generateWeaknessTraining()
+    });
+    this.addCommand({
+      id: "refresh-learning-summary",
+      name: t("cmd.learningSummary"),
+      callback: () => void this.refreshLearningSummary()
+    });
+    this.addCommand({
+      id: "strength-reinforcement",
+      name: t("cmd.strengthReinforcement"),
+      callback: () => void this.generateStrengthReinforcement()
     });
   }
 
@@ -2166,6 +2182,96 @@ export default class AnnotationTutorLitePlugin extends Plugin {
       ? dueCells(this.librarySnapshot.cells, nowIso()).length
       : 0;
     setDueBadge(this.reviewStatusEl, count, () => void this.reviewDueCells());
+  }
+
+  // --- opt-in feedback mechanisms (off by default) ---------------------------
+
+  /** Retrieval-practice questions targeting weak cells (active recall). */
+  public async generateWeaknessTraining(): Promise<void> {
+    await this.generateFeedback({
+      enabled: this.settings.enableWeaknessTraining,
+      cells: classifyCells(this.librarySnapshot.cells).weaknesses,
+      fileName: "Training/weakness-practice.md",
+      title: t("feedback.weaknessTitle"),
+      instruction:
+        "Write 5 short retrieval-practice questions (active recall) targeting these weak points. Number them, then put concise answers under a final '### Answers' heading. Write everything in {lang}."
+    });
+  }
+
+  /** A narrative summary of strengths, weaknesses, and methods + next steps. */
+  public async refreshLearningSummary(): Promise<void> {
+    await this.generateFeedback({
+      enabled: this.settings.enableLearningSummary,
+      cells: this.librarySnapshot.cells,
+      fileName: "Learning summary.md",
+      title: t("feedback.summaryTitle"),
+      instruction:
+        "From the cells below, write a short narrative of the learner's strengths, weaknesses, and problem-solving methods (use those three headings), then 2-3 concrete next study steps. Write in {lang}."
+    });
+  }
+
+  /** Next-step extensions that build on the learner's strengths. */
+  public async generateStrengthReinforcement(): Promise<void> {
+    await this.generateFeedback({
+      enabled: this.settings.enableStrengthReinforcement,
+      cells: classifyCells(this.librarySnapshot.cells).strengths,
+      fileName: "Training/next-steps.md",
+      title: t("feedback.strengthTitle"),
+      instruction:
+        "For each strength below, suggest one concrete next-step extension or application that deepens mastery. Keep it brief. Write in {lang}."
+    });
+  }
+
+  /**
+   * Shared driver for the opt-in feedback commands: gate on the setting, bail if
+   * there are no matching cells, ask the engine once, and write the result to a
+   * dated file under the memory root (then open it).
+   */
+  private async generateFeedback(opts: {
+    enabled: boolean;
+    cells: MemoryCell[];
+    fileName: string;
+    title: string;
+    instruction: string;
+  }): Promise<void> {
+    if (!opts.enabled) {
+      new Notice(t("notice.feedbackDisabled"));
+      return;
+    }
+    if (opts.cells.length === 0) {
+      new Notice(t("notice.feedbackNone"));
+      return;
+    }
+    const lang =
+      this.settings.reviewLanguage.trim() ||
+      detectLanguageName(opts.cells.map((cell) => cell.summary).join(" "));
+    const progress = new Notice(t("notice.feedbackGenerating"), 0);
+    try {
+      const items = opts.cells
+        .slice(0, 12)
+        .map((cell, index) => `(${index + 1}) [${cell.type}] ${cell.concept}: ${cell.summary}`)
+        .join("\n");
+      const system = `${tutorSystemPrompt(lang)}\n\n${opts.instruction.replace(/\{lang\}/g, lang)}`;
+      const turn = await this.runDialogueTurn(
+        [
+          { role: "system", content: system },
+          { role: "user", content: items }
+        ],
+        `${system}\n\n${items}`
+      );
+      if (!turn.ok || !turn.text.trim()) {
+        new Notice(t("notice.feedbackFailed"));
+        return;
+      }
+      const body = `# ${opts.title}\n\n_${nowIso()}_\n\n${turn.text.trim()}\n`;
+      const path = await this.store.writeMemoryDoc(opts.fileName, body);
+      await this.openLibraryPath(path);
+    } catch (error) {
+      console.error("[Annotation Tutor Lite] feedback generation failed", error);
+      new Notice(t("notice.feedbackFailed"));
+    } finally {
+      progress.hide();
+    }
   }
 
   // --- notebook --------------------------------------------------------------

@@ -25167,6 +25167,16 @@ var en2 = {
   "review.done": "Reviewed {count} cells.",
   "notice.reviewDisabled": "Enable spaced review in Settings \u2192 Learning first.",
   "notice.reviewNoneDue": "Nothing is due for review right now.",
+  "cmd.weaknessTraining": "Generate practice for weaknesses",
+  "cmd.learningSummary": "Refresh learning summary",
+  "cmd.strengthReinforcement": "Suggest next steps (strengths)",
+  "feedback.weaknessTitle": "Weakness practice",
+  "feedback.summaryTitle": "Learning summary",
+  "feedback.strengthTitle": "Next steps",
+  "notice.feedbackDisabled": "Enable this in Settings \u2192 Learning first.",
+  "notice.feedbackNone": "No matching memory cells yet.",
+  "notice.feedbackGenerating": "Generating\u2026",
+  "notice.feedbackFailed": "Generation failed \u2014 check the engine/API settings.",
   "settings.libraryStats": "Memory library",
   "settings.counts": "{annotations} annotations \xB7 {cells} cells \xB7 {scenes} scenes \xB7 {proposals} proposals",
   "settings.openOverview": "Open overview",
@@ -25470,6 +25480,16 @@ var zhCn2 = {
   "review.done": "\u5DF2\u590D\u4E60 {count} \u4E2A\u5355\u5143\u3002",
   "notice.reviewDisabled": "\u8BF7\u5148\u5728 \u8BBE\u7F6E \u2192 \u5B66\u4E60 \u4E2D\u542F\u7528\u95F4\u9694\u590D\u4E60\u3002",
   "notice.reviewNoneDue": "\u5F53\u524D\u6CA1\u6709\u5230\u671F\u9700\u8981\u590D\u4E60\u7684\u5185\u5BB9\u3002",
+  "cmd.weaknessTraining": "\u9488\u5BF9\u8584\u5F31\u70B9\u751F\u6210\u7EC3\u4E60",
+  "cmd.learningSummary": "\u5237\u65B0\u5B66\u4E60\u603B\u7ED3",
+  "cmd.strengthReinforcement": "\u7ED9\u51FA\u8FDB\u9636\u5EFA\u8BAE\uFF08\u4F18\u52BF\uFF09",
+  "feedback.weaknessTitle": "\u8584\u5F31\u70B9\u7EC3\u4E60",
+  "feedback.summaryTitle": "\u5B66\u4E60\u603B\u7ED3",
+  "feedback.strengthTitle": "\u8FDB\u9636\u5EFA\u8BAE",
+  "notice.feedbackDisabled": "\u8BF7\u5148\u5728 \u8BBE\u7F6E \u2192 \u5B66\u4E60 \u4E2D\u542F\u7528\u8BE5\u529F\u80FD\u3002",
+  "notice.feedbackNone": "\u6682\u65E0\u5339\u914D\u7684\u8BB0\u5FC6\u5355\u5143\u3002",
+  "notice.feedbackGenerating": "\u6B63\u5728\u751F\u6210\u2026\u2026",
+  "notice.feedbackFailed": "\u751F\u6210\u5931\u8D25\u2014\u2014\u8BF7\u68C0\u67E5\u5F15\u64CE/API \u8BBE\u7F6E\u3002",
   "settings.libraryStats": "\u8BB0\u5FC6\u5E93",
   "settings.counts": "{annotations} \u6761\u6279\u6CE8 \xB7 {cells} \u4E2A Cell \xB7 {scenes} \u4E2A Scene \xB7 {proposals} \u6761\u5F85\u786E\u8BA4",
   "settings.openOverview": "\u6253\u5F00\u603B\u89C8",
@@ -25688,6 +25708,16 @@ var zhTw2 = {
   "review.done": "\u5DF2\u8907\u7FD2 {count} \u500B\u55AE\u5143\u3002",
   "notice.reviewDisabled": "\u8ACB\u5148\u5728 \u8A2D\u5B9A \u2192 Learning \u4E2D\u555F\u7528\u9593\u9694\u8907\u7FD2\u3002",
   "notice.reviewNoneDue": "\u76EE\u524D\u6C92\u6709\u5230\u671F\u9700\u8981\u8907\u7FD2\u7684\u5167\u5BB9\u3002",
+  "cmd.weaknessTraining": "\u91DD\u5C0D\u5F31\u9EDE\u7522\u751F\u7DF4\u7FD2",
+  "cmd.learningSummary": "\u91CD\u65B0\u6574\u7406\u5B78\u7FD2\u7E3D\u7D50",
+  "cmd.strengthReinforcement": "\u7D66\u51FA\u9032\u968E\u5EFA\u8B70\uFF08\u512A\u52E2\uFF09",
+  "feedback.weaknessTitle": "\u5F31\u9EDE\u7DF4\u7FD2",
+  "feedback.summaryTitle": "\u5B78\u7FD2\u7E3D\u7D50",
+  "feedback.strengthTitle": "\u9032\u968E\u5EFA\u8B70",
+  "notice.feedbackDisabled": "\u8ACB\u5148\u5728 \u8A2D\u5B9A \u2192 Learning \u4E2D\u555F\u7528\u6B64\u529F\u80FD\u3002",
+  "notice.feedbackNone": "\u5C1A\u7121\u76F8\u7B26\u7684\u8A18\u61B6\u55AE\u5143\u3002",
+  "notice.feedbackGenerating": "\u6B63\u5728\u7522\u751F\u2026\u2026",
+  "notice.feedbackFailed": "\u7522\u751F\u5931\u6557\u2014\u2014\u8ACB\u6AA2\u67E5\u5F15\u64CE/API \u8A2D\u5B9A\u3002",
   "panel.settings": "\u8A2D\u5B9A",
   "panel.placeholder": "\u6211\u5C0D\u9019\u90E8\u5206\u7684\u7406\u89E3\u662F\u2026\u2026",
   "panel.save": "\u5132\u5B58",
@@ -25934,6 +25964,16 @@ var ja2 = {
   "review.done": "{count} \u4EF6\u306E\u30BB\u30EB\u3092\u5FA9\u7FD2\u3057\u307E\u3057\u305F\u3002",
   "notice.reviewDisabled": "\u8A2D\u5B9A \u2192 Learning \u3067\u9593\u9694\u53CD\u5FA9\u3092\u6709\u52B9\u306B\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
   "notice.reviewNoneDue": "\u73FE\u5728\u3001\u5FA9\u7FD2\u306E\u671F\u9650\u304C\u6765\u3066\u3044\u308B\u3082\u306E\u306F\u3042\u308A\u307E\u305B\u3093\u3002",
+  "cmd.weaknessTraining": "\u5F31\u70B9\u5411\u3051\u306E\u7DF4\u7FD2\u3092\u751F\u6210",
+  "cmd.learningSummary": "\u5B66\u7FD2\u30B5\u30DE\u30EA\u30FC\u3092\u66F4\u65B0",
+  "cmd.strengthReinforcement": "\u6B21\u306E\u4E00\u6B69\u3092\u63D0\u6848\uFF08\u5F37\u307F\uFF09",
+  "feedback.weaknessTitle": "\u5F31\u70B9\u306E\u7DF4\u7FD2",
+  "feedback.summaryTitle": "\u5B66\u7FD2\u30B5\u30DE\u30EA\u30FC",
+  "feedback.strengthTitle": "\u6B21\u306E\u4E00\u6B69",
+  "notice.feedbackDisabled": "\u8A2D\u5B9A \u2192 Learning \u3067\u5148\u306B\u6709\u52B9\u5316\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
+  "notice.feedbackNone": "\u8A72\u5F53\u3059\u308B\u30E1\u30E2\u30EA\u30BB\u30EB\u304C\u307E\u3060\u3042\u308A\u307E\u305B\u3093\u3002",
+  "notice.feedbackGenerating": "\u751F\u6210\u4E2D\u2026",
+  "notice.feedbackFailed": "\u751F\u6210\u306B\u5931\u6557\u3057\u307E\u3057\u305F\u3002\u30A8\u30F3\u30B8\u30F3/API\u8A2D\u5B9A\u3092\u78BA\u8A8D\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
   "panel.settings": "\u8A2D\u5B9A",
   "panel.placeholder": "\u79C1\u306E\u7406\u89E3\u3067\u306F\u2026\u2026",
   "panel.save": "\u4FDD\u5B58",
@@ -26296,6 +26336,12 @@ var VaultStore = class {
       `${this.memoryCellsDir()}/${cell.id}.md`,
       serializeMemoryCell(cell, this.memoryRoot())
     );
+  }
+  /** Write a generated learning doc (training/summary) under the memory root. */
+  async writeMemoryDoc(relPath, content) {
+    const path = `${this.memoryRoot()}/${relPath}`;
+    await this.writeVaultFile(path, content);
+    return path;
   }
   /** Persist a new spaced-repetition schedule onto a cell, preserving its body. */
   async updateCellSchedule(cellId, review) {
@@ -30648,6 +30694,21 @@ var AnnotationTutorLitePlugin = class extends import_obsidian12.Plugin {
       name: t("cmd.reviewDue"),
       callback: () => void this.reviewDueCells()
     });
+    this.addCommand({
+      id: "weakness-training",
+      name: t("cmd.weaknessTraining"),
+      callback: () => void this.generateWeaknessTraining()
+    });
+    this.addCommand({
+      id: "refresh-learning-summary",
+      name: t("cmd.learningSummary"),
+      callback: () => void this.refreshLearningSummary()
+    });
+    this.addCommand({
+      id: "strength-reinforcement",
+      name: t("cmd.strengthReinforcement"),
+      callback: () => void this.generateStrengthReinforcement()
+    });
   }
   addEditorMenuItems(menu, editor, info) {
     menu.addItem(
@@ -31868,6 +31929,86 @@ ${user}`
     if (!this.reviewStatusEl) return;
     const count = this.settings.enableSpacedReview ? dueCells(this.librarySnapshot.cells, nowIso()).length : 0;
     setDueBadge(this.reviewStatusEl, count, () => void this.reviewDueCells());
+  }
+  // --- opt-in feedback mechanisms (off by default) ---------------------------
+  /** Retrieval-practice questions targeting weak cells (active recall). */
+  async generateWeaknessTraining() {
+    await this.generateFeedback({
+      enabled: this.settings.enableWeaknessTraining,
+      cells: classifyCells(this.librarySnapshot.cells).weaknesses,
+      fileName: "Training/weakness-practice.md",
+      title: t("feedback.weaknessTitle"),
+      instruction: "Write 5 short retrieval-practice questions (active recall) targeting these weak points. Number them, then put concise answers under a final '### Answers' heading. Write everything in {lang}."
+    });
+  }
+  /** A narrative summary of strengths, weaknesses, and methods + next steps. */
+  async refreshLearningSummary() {
+    await this.generateFeedback({
+      enabled: this.settings.enableLearningSummary,
+      cells: this.librarySnapshot.cells,
+      fileName: "Learning summary.md",
+      title: t("feedback.summaryTitle"),
+      instruction: "From the cells below, write a short narrative of the learner's strengths, weaknesses, and problem-solving methods (use those three headings), then 2-3 concrete next study steps. Write in {lang}."
+    });
+  }
+  /** Next-step extensions that build on the learner's strengths. */
+  async generateStrengthReinforcement() {
+    await this.generateFeedback({
+      enabled: this.settings.enableStrengthReinforcement,
+      cells: classifyCells(this.librarySnapshot.cells).strengths,
+      fileName: "Training/next-steps.md",
+      title: t("feedback.strengthTitle"),
+      instruction: "For each strength below, suggest one concrete next-step extension or application that deepens mastery. Keep it brief. Write in {lang}."
+    });
+  }
+  /**
+   * Shared driver for the opt-in feedback commands: gate on the setting, bail if
+   * there are no matching cells, ask the engine once, and write the result to a
+   * dated file under the memory root (then open it).
+   */
+  async generateFeedback(opts) {
+    if (!opts.enabled) {
+      new import_obsidian12.Notice(t("notice.feedbackDisabled"));
+      return;
+    }
+    if (opts.cells.length === 0) {
+      new import_obsidian12.Notice(t("notice.feedbackNone"));
+      return;
+    }
+    const lang = this.settings.reviewLanguage.trim() || detectLanguageName(opts.cells.map((cell) => cell.summary).join(" "));
+    const progress = new import_obsidian12.Notice(t("notice.feedbackGenerating"), 0);
+    try {
+      const items = opts.cells.slice(0, 12).map((cell, index) => `(${index + 1}) [${cell.type}] ${cell.concept}: ${cell.summary}`).join("\n");
+      const system = `${tutorSystemPrompt(lang)}
+
+${opts.instruction.replace(/\{lang\}/g, lang)}`;
+      const turn = await this.runDialogueTurn(
+        [
+          { role: "system", content: system },
+          { role: "user", content: items }
+        ],
+        `${system}
+
+${items}`
+      );
+      if (!turn.ok || !turn.text.trim()) {
+        new import_obsidian12.Notice(t("notice.feedbackFailed"));
+        return;
+      }
+      const body = `# ${opts.title}
+
+_${nowIso()}_
+
+${turn.text.trim()}
+`;
+      const path = await this.store.writeMemoryDoc(opts.fileName, body);
+      await this.openLibraryPath(path);
+    } catch (error51) {
+      console.error("[Annotation Tutor Lite] feedback generation failed", error51);
+      new import_obsidian12.Notice(t("notice.feedbackFailed"));
+    } finally {
+      progress.hide();
+    }
   }
   // --- notebook --------------------------------------------------------------
   /** Open the study notebook, building it first if it doesn't exist yet. */

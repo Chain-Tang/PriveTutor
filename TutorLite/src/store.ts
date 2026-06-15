@@ -335,6 +335,13 @@ export class VaultStore {
     );
   }
 
+  /** Write a generated learning doc (training/summary) under the memory root. */
+  public async writeMemoryDoc(relPath: string, content: string): Promise<string> {
+    const path = `${this.memoryRoot()}/${relPath}`;
+    await this.writeVaultFile(path, content);
+    return path;
+  }
+
   /** Persist a new spaced-repetition schedule onto a cell, preserving its body. */
   public async updateCellSchedule(
     cellId: string,
