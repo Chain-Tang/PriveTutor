@@ -24,7 +24,7 @@ import {
   bareBlockId
 } from "./model.js";
 import { memoryCellSchema } from "./schemas.js";
-import { blockIdForAnnotation, makeId, nowIso } from "./ids.js";
+import { blockIdForAnnotation, cellIdForAnnotation, makeId, nowIso } from "./ids.js";
 import { resolveAnchor } from "./anchors.js";
 import {
   crossesMarkdownBlocks,
@@ -167,6 +167,29 @@ function asConfidence(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value)
     ? Math.min(1, Math.max(0, value))
     : 0.6;
+}
+
+/** Map a review's correctness to the kind of memory cell it implies. */
+function cellTypeForCorrectness(correctness: string | undefined): MemoryCell["type"] {
+  if (correctness === "incorrect") return "misconception";
+  if (correctness === "uncertain") return "difficulty";
+  return "understanding";
+}
+
+/** A starting confidence for an auto cell, from the review's correctness. */
+function confidenceForCorrectness(correctness: string | undefined): number {
+  switch (correctness) {
+    case "correct":
+      return 0.85;
+    case "partially_correct":
+      return 0.5;
+    case "incorrect":
+      return 0.3;
+    case "uncertain":
+      return 0.4;
+    default:
+      return 0.6;
+  }
 }
 
 /** Normalized result of one review attempt, shared by both engines. */
@@ -983,6 +1006,9 @@ export default class AnnotationTutorLitePlugin extends Plugin {
         case "ok":
           await this.store.writeReview(id, outcome.reviewText);
           await this.store.setTaskStatus(taskId, "completed");
+          // Capture a memory cell automatically (no extra model call), then a
+          // single rebuild picks up the review, the cell, and any new scene.
+          await this.autoSaveCellFromReview(record, outcome.reviewText);
           await this.rebuildIndex(false);
           new Notice(t("notice.agentDone", { id }));
           return;
@@ -1727,8 +1753,10 @@ export default class AnnotationTutorLitePlugin extends Plugin {
       (record.userNote ?? record.userNoteSummary ?? record.reviewText ?? "").trim();
     if (!summary) return null;
     const now = nowIso();
+    const id = cellIdForAnnotation(record.annotationId);
+    const existing = this.librarySnapshot.cells.find((cell) => cell.id === id);
     const candidate: MemoryCell = {
-      id: makeId("MEM", this.librarySnapshot.cells.map((cell) => cell.id)),
+      id,
       type: asCellType(parsed?.["type"]),
       concept,
       status: "new",
@@ -1736,11 +1764,48 @@ export default class AnnotationTutorLitePlugin extends Plugin {
       sourceAnnotations: [record.annotationId],
       tags: record.concepts,
       confidence: asConfidence(parsed?.["confidence"]),
-      createdAt: now,
+      createdAt: existing?.createdAt ?? now,
       updatedAt: now
     };
     const validated = memoryCellSchema.safeParse(candidate);
     return validated.success ? validated.data : null;
+  }
+
+  /**
+   * After a review, capture a memory cell automatically (deterministically, no
+   * extra model call) so the learning memory grows on its own. Create-once per
+   * annotation, so a richer manually-saved cell is never clobbered by a re-review.
+   */
+  private async autoSaveCellFromReview(
+    record: IndexRecord,
+    reviewText: string
+  ): Promise<void> {
+    const id = cellIdForAnnotation(record.annotationId);
+    if (this.librarySnapshot.cells.some((cell) => cell.id === id)) return;
+    const review = parseAgentReview(reviewText, nowIso());
+    const summary = (review?.summary ?? reviewText).trim();
+    const concept =
+      record.concepts[0] ||
+      (record.selectedText ?? "").slice(0, 40).trim() ||
+      record.annotationId;
+    if (!summary || !concept) return;
+    const now = nowIso();
+    const candidate: MemoryCell = {
+      id,
+      type: cellTypeForCorrectness(review?.correctness),
+      concept,
+      status: "new",
+      summary,
+      sourceAnnotations: [record.annotationId],
+      tags: record.concepts,
+      confidence: confidenceForCorrectness(review?.correctness),
+      createdAt: now,
+      updatedAt: now
+    };
+    const validated = memoryCellSchema.safeParse(candidate);
+    if (!validated.success) return;
+    await this.store.createMemoryCell(validated.data);
+    await this.store.syncScenesFromCells();
   }
 
   private confirmDeleteById(id: string): void {

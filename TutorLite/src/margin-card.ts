@@ -41,6 +41,12 @@ export type MarginCardHandlers = {
 
 let handlers: MarginCardHandlers | null = null;
 
+// Which annotations have their dialogue revealed. The rail rebuilds cards from
+// scratch on scroll/geometry changes, so this session-level set keeps a card's
+// dialogue open across those rebuilds (otherwise a toggle would be undone on the
+// next re-render, which read as "needs two clicks").
+const openDialogues = new Set<string>();
+
 export function setMarginCardHandlers(value: MarginCardHandlers | null): void {
   handlers = value;
 }
@@ -119,6 +125,9 @@ export function buildMarginCard(
   );
   // Keeps reading immersive: the dialogue input stays hidden until requested.
   headButton(head, "message-circle", t("card.dialogue"), () => toggleDialogue());
+  headButton(head, "brain", t("card.saveCell"), () =>
+    getMarginCardHandlers()?.saveCell(mark.id)
+  );
   headButton(head, "trash-2", t("card.delete"), () =>
     getMarginCardHandlers()?.remove(mark.id)
   );
@@ -203,7 +212,7 @@ export function buildMarginCard(
 function renderDialogue(card: HTMLElement, mark: AnchorMark): { toggle: () => void } {
   const wrap = document.createElement("div");
   wrap.className = "atl-rail-dialogue";
-  wrap.style.display = "none";
+  wrap.style.display = openDialogues.has(mark.id) ? "flex" : "none";
 
   const thread = document.createElement("div");
   thread.className = "atl-rail-thread";
@@ -224,18 +233,6 @@ function renderDialogue(card: HTMLElement, mark: AnchorMark): { toggle: () => vo
   row.appendChild(input);
   row.appendChild(send);
   wrap.appendChild(row);
-
-  const footer = document.createElement("div");
-  footer.className = "atl-rail-dialogue-footer";
-  const saveCell = document.createElement("button");
-  saveCell.className = "atl-rail-savecell";
-  setIcon(saveCell, "brain");
-  saveCell.appendChild(document.createTextNode(` ${t("card.saveCell")}`));
-  setTooltip(saveCell, t("card.saveCell"));
-  saveCell.addEventListener("mousedown", (event) => event.stopPropagation());
-  saveCell.onclick = () => void getMarginCardHandlers()?.saveCell(mark.id);
-  footer.appendChild(saveCell);
-  wrap.appendChild(footer);
 
   const submit = async (): Promise<void> => {
     const message = input.value.trim();
@@ -275,7 +272,9 @@ function renderDialogue(card: HTMLElement, mark: AnchorMark): { toggle: () => vo
   card.appendChild(wrap);
   return {
     toggle: () => {
-      const opening = wrap.style.display === "none";
+      const opening = !openDialogues.has(mark.id);
+      if (opening) openDialogues.add(mark.id);
+      else openDialogues.delete(mark.id);
       wrap.style.display = opening ? "flex" : "none";
       if (opening) {
         input.focus();

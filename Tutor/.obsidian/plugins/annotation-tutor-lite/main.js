@@ -22028,6 +22028,9 @@ function makeId(prefix, existingIds, date6 = /* @__PURE__ */ new Date()) {
 function blockIdForAnnotation(annotationId) {
   return annotationId.toLowerCase();
 }
+function cellIdForAnnotation(annotationId) {
+  return `MEM-${annotationId.toLowerCase()}`;
+}
 function nowIso(date6 = /* @__PURE__ */ new Date()) {
   return date6.toISOString();
 }
@@ -27396,6 +27399,7 @@ var import_view2 = require("@codemirror/view");
 // src/margin-card.ts
 var import_obsidian5 = require("obsidian");
 var handlers = null;
+var openDialogues = /* @__PURE__ */ new Set();
 function setMarginCardHandlers(value) {
   handlers = value;
 }
@@ -27439,6 +27443,12 @@ function buildMarginCard(mark, options) {
     () => getMarginCardHandlers()?.ask(mark.id, editor.value)
   );
   headButton(head, "message-circle", t("card.dialogue"), () => toggleDialogue());
+  headButton(
+    head,
+    "brain",
+    t("card.saveCell"),
+    () => getMarginCardHandlers()?.saveCell(mark.id)
+  );
   headButton(
     head,
     "trash-2",
@@ -27505,7 +27515,7 @@ function buildMarginCard(mark, options) {
 function renderDialogue(card, mark) {
   const wrap = document.createElement("div");
   wrap.className = "atl-rail-dialogue";
-  wrap.style.display = "none";
+  wrap.style.display = openDialogues.has(mark.id) ? "flex" : "none";
   const thread = document.createElement("div");
   thread.className = "atl-rail-thread";
   for (const turn of mark.dialogue ?? []) appendTurn(thread, turn.role, turn.text);
@@ -27524,17 +27534,6 @@ function renderDialogue(card, mark) {
   row.appendChild(input);
   row.appendChild(send);
   wrap.appendChild(row);
-  const footer = document.createElement("div");
-  footer.className = "atl-rail-dialogue-footer";
-  const saveCell = document.createElement("button");
-  saveCell.className = "atl-rail-savecell";
-  (0, import_obsidian5.setIcon)(saveCell, "brain");
-  saveCell.appendChild(document.createTextNode(` ${t("card.saveCell")}`));
-  (0, import_obsidian5.setTooltip)(saveCell, t("card.saveCell"));
-  saveCell.addEventListener("mousedown", (event) => event.stopPropagation());
-  saveCell.onclick = () => void getMarginCardHandlers()?.saveCell(mark.id);
-  footer.appendChild(saveCell);
-  wrap.appendChild(footer);
   const submit = async () => {
     const message = input.value.trim();
     const cardHandlers = getMarginCardHandlers();
@@ -27572,7 +27571,9 @@ function renderDialogue(card, mark) {
   card.appendChild(wrap);
   return {
     toggle: () => {
-      const opening = wrap.style.display === "none";
+      const opening = !openDialogues.has(mark.id);
+      if (opening) openDialogues.add(mark.id);
+      else openDialogues.delete(mark.id);
       wrap.style.display = opening ? "flex" : "none";
       if (opening) {
         input.focus();
@@ -29513,6 +29514,25 @@ function asCellType(value) {
 function asConfidence(value) {
   return typeof value === "number" && Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 0.6;
 }
+function cellTypeForCorrectness(correctness) {
+  if (correctness === "incorrect") return "misconception";
+  if (correctness === "uncertain") return "difficulty";
+  return "understanding";
+}
+function confidenceForCorrectness(correctness) {
+  switch (correctness) {
+    case "correct":
+      return 0.85;
+    case "partially_correct":
+      return 0.5;
+    case "incorrect":
+      return 0.3;
+    case "uncertain":
+      return 0.4;
+    default:
+      return 0.6;
+  }
+}
 var AnnotationTutorLitePlugin = class extends import_obsidian11.Plugin {
   settings = { ...DEFAULT_SETTINGS };
   indexTable = new IndexTable();
@@ -30184,6 +30204,7 @@ var AnnotationTutorLitePlugin = class extends import_obsidian11.Plugin {
         case "ok":
           await this.store.writeReview(id, outcome.reviewText);
           await this.store.setTaskStatus(taskId, "completed");
+          await this.autoSaveCellFromReview(record2, outcome.reviewText);
           await this.rebuildIndex(false);
           new import_obsidian11.Notice(t("notice.agentDone", { id }));
           return;
@@ -30826,8 +30847,10 @@ ${user}`
     const summary = asText(parsed?.["summary"]) || (record2.userNote ?? record2.userNoteSummary ?? record2.reviewText ?? "").trim();
     if (!summary) return null;
     const now = nowIso();
+    const id = cellIdForAnnotation(record2.annotationId);
+    const existing = this.librarySnapshot.cells.find((cell) => cell.id === id);
     const candidate = {
-      id: makeId("MEM", this.librarySnapshot.cells.map((cell) => cell.id)),
+      id,
       type: asCellType(parsed?.["type"]),
       concept,
       status: "new",
@@ -30835,11 +30858,41 @@ ${user}`
       sourceAnnotations: [record2.annotationId],
       tags: record2.concepts,
       confidence: asConfidence(parsed?.["confidence"]),
-      createdAt: now,
+      createdAt: existing?.createdAt ?? now,
       updatedAt: now
     };
     const validated = memoryCellSchema.safeParse(candidate);
     return validated.success ? validated.data : null;
+  }
+  /**
+   * After a review, capture a memory cell automatically (deterministically, no
+   * extra model call) so the learning memory grows on its own. Create-once per
+   * annotation, so a richer manually-saved cell is never clobbered by a re-review.
+   */
+  async autoSaveCellFromReview(record2, reviewText) {
+    const id = cellIdForAnnotation(record2.annotationId);
+    if (this.librarySnapshot.cells.some((cell) => cell.id === id)) return;
+    const review = parseAgentReview(reviewText, nowIso());
+    const summary = (review?.summary ?? reviewText).trim();
+    const concept = record2.concepts[0] || (record2.selectedText ?? "").slice(0, 40).trim() || record2.annotationId;
+    if (!summary || !concept) return;
+    const now = nowIso();
+    const candidate = {
+      id,
+      type: cellTypeForCorrectness(review?.correctness),
+      concept,
+      status: "new",
+      summary,
+      sourceAnnotations: [record2.annotationId],
+      tags: record2.concepts,
+      confidence: confidenceForCorrectness(review?.correctness),
+      createdAt: now,
+      updatedAt: now
+    };
+    const validated = memoryCellSchema.safeParse(candidate);
+    if (!validated.success) return;
+    await this.store.createMemoryCell(validated.data);
+    await this.store.syncScenesFromCells();
   }
   confirmDeleteById(id) {
     const record2 = this.indexTable.get(id);

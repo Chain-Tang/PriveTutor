@@ -540,32 +540,6 @@
   flex: none;
 }
 
-.atl-rail-dialogue-footer {
-  display: flex;
-  justify-content: flex-end;
-}
-
-/* Quiet "save as memory cell" action under the dialogue. */
-.atl-rail-savecell {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--size-2-1);
-  padding: var(--size-2-1) var(--size-2-2);
-  border: none;
-  background: transparent;
-  box-shadow: none;
-  color: var(--text-muted);
-  font-size: var(--font-ui-smaller);
-  cursor: pointer;
-}
-.atl-rail-savecell:hover {
-  color: var(--text-normal);
-}
-.atl-rail-savecell .svg-icon {
-  width: 14px;
-  height: 14px;
-}
-
 /* The tutor-proposed edit preview, shown inline in the thread. */
 .atl-rail-editcard {
   border: 1px solid var(--background-modifier-border);

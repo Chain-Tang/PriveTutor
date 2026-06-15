@@ -44,6 +44,15 @@ export function blockIdForAnnotation(annotationId: string): string {
   return annotationId.toLowerCase();
 }
 
+/**
+ * Stable memory-cell id for an annotation, so re-reviewing or re-saving updates
+ * the same cell instead of creating duplicates. e.g. ANN-20260606-001 ->
+ * MEM-ann-20260606-001 (matches the cell id schema `^(?:CELL|MEM)-…`).
+ */
+export function cellIdForAnnotation(annotationId: string): string {
+  return `MEM-${annotationId.toLowerCase()}`;
+}
+
 export function nowIso(date = new Date()): string {
   return date.toISOString();
 }
