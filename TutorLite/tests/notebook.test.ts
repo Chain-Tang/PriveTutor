@@ -77,7 +77,8 @@ describe("buildNotebook", () => {
     // Block-reference link back into the source note.
     expect(page).toContain("[[Papers/Attention#^ann-1|Multi-head attention]]");
     expect(page).toContain("## Annotation content");
-    expect(page).toContain("### ANN-1");
+    // The heading reads as a date and links to the annotation note (not a raw ID).
+    expect(page).toContain("### [[Agent Memory/annotations/ANN-1|June 6, 2026]]");
     expect(page).toContain("**Note:** Attention attends to several positions.");
     expect(page).toContain("## Dialogue context");
     expect(page).toContain("**You:** Why several heads?");
@@ -220,8 +221,10 @@ describe("buildNotebook", () => {
     const page = byPath(files, "Agent Memory/Notebook/pages/Papers-Attention.md");
     expect(page).toContain("## 文档背景");
     expect(page).toContain("## 原文索引");
+    // Date headings localize too (link target stays the annotation note path).
+    expect(page).toContain("### [[Agent Memory/annotations/ANN-1|2026年6月6日]]");
     // The agent's own prose stays as written; only structure is localized.
-    expect(page).toContain("### ANN-1");
+    expect(page).toContain("Attention attends to several positions.");
   });
 });
 

@@ -218,7 +218,7 @@ function renderPage(
   // 3. Annotation content — the learner's note and the tutor's review.
   lines.push("", `## ${L.annotationContent}`, "");
   for (const record of page.records) {
-    lines.push(`### ${record.annotationId}`, "");
+    lines.push(`### ${annotationLink(record, options.locale)}`, "");
     lines.push(toBlockquote(record.selectedText ?? ""), "");
     const note = record.userNote ?? record.userNoteSummary;
     if (note?.trim()) lines.push(`**${L.note}:** ${oneLine(note)}`, "");
@@ -231,7 +231,7 @@ function renderPage(
   if (withDialogue.length > 0) {
     lines.push(`## ${L.dialogueContext}`, "");
     for (const record of withDialogue) {
-      lines.push(`### ${record.annotationId}`, "");
+      lines.push(`### ${annotationLink(record, options.locale)}`, "");
       for (const turn of record.dialogue ?? []) {
         lines.push(`**${turnLabel(turn, L)}:** ${oneLine(turn.text)}`, "");
       }
@@ -361,6 +361,34 @@ function blockLink(sourceFile: string, anchor: string, label: string): string {
 
 function turnLabel(turn: DialogueTurn, L: NotebookLabels): string {
   return turn.role === "agent" ? L.tutor : L.you;
+}
+
+/**
+ * A notebook heading that reads as a date and links to the annotation note —
+ * which in turn links back to the original source text. Dates over opaque IDs:
+ * the notebook is read by people, not machines.
+ */
+function annotationLink(record: IndexRecord, locale?: Locale): string {
+  return link(stripMd(record.memoryFile), formatDate(record.createdAt, locale));
+}
+
+const MONTHS_EN = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
+];
+
+/**
+ * A readable date for a heading — localized and deterministic (UTC, no ICU
+ * dependency, so it is stable across environments and in unit tests).
+ */
+function formatDate(iso: string, locale: Locale = "en"): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  const year = date.getUTCFullYear();
+  const month = date.getUTCMonth() + 1;
+  const day = date.getUTCDate();
+  if (locale === "en") return `${MONTHS_EN[month - 1] ?? ""} ${day}, ${year}`;
+  return `${year}年${month}月${day}日`; // zh-cn / zh-tw / ja
 }
 
 function oneLine(text: string): string {

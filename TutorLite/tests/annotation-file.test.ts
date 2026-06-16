@@ -49,6 +49,13 @@ describe("annotation file", () => {
     expect(parsed?.status).toBe("saved");
   });
 
+  it("links to the source block so an annotation is one hop from its original text", () => {
+    const serialized = serializeAnnotation(sample());
+    expect(serialized).toContain("[[Papers/Attention#^ann-20260606-001|Open in source]]");
+    // The link sits in the lead and must not pollute the parsed Selected Text.
+    expect(parseAnnotationFile(serialized)?.anchor.selectedText).toBe("Multi-head attention");
+  });
+
   it("serialization is idempotent", () => {
     const once = serializeAnnotation(sample());
     const twice = serializeAnnotation(parseAnnotationFile(once)!);

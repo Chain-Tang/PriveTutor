@@ -109,8 +109,16 @@ export function serializeAnnotation(
       ? serializeDialogue(annotation.dialogue)
       : "";
 
+  // A clickable block-link back to the source, so opening an annotation is one
+  // hop from its original text. It lives in the lead (above the first `##`), so
+  // it is regenerated on serialize and never parsed back into a field.
+  const sourceLink = wikiLink(
+    `${stripExtension(annotation.sourceFile)}#${caretId(annotation.anchor.blockId)}`,
+    "Open in source"
+  );
+
   const body = [
-    `# ${annotation.id}`,
+    `# ${annotation.id}\n\n${sourceLink}`,
     `## Selected Text\n\n${toBlockquote(annotation.anchor.selectedText)}`,
     `## User Note\n\n${toBlockquote(annotation.userNote)}`,
     `## Agent Review\n\n${reviewBody}`,
@@ -286,6 +294,10 @@ export function updateAnnotationMarkdown(
     updatedAt: patch.updatedAt ?? new Date().toISOString()
   };
   return serializeAnnotation(updated, memoryRoot);
+}
+
+function stripExtension(path: string): string {
+  return path.replace(/\.md$/i, "");
 }
 
 function normalizeStatus(value: string | undefined): AnnotationStatus {
