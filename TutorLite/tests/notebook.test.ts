@@ -187,6 +187,31 @@ describe("buildNotebook", () => {
     expect(index).toContain("[[Agent Memory/Notebook/Learning summary|Learning summary]]");
   });
 
+  it("emits clean spacing: no blank-line runs, header flows into one blockquote", () => {
+    const cells: import("../src/model.js").MemoryCell[] = [
+      {
+        id: "MEM-1",
+        type: "understanding",
+        concept: "Attention",
+        status: "stable",
+        summary: "Grasped attention.",
+        sourceAnnotations: ["ANN-1"],
+        tags: [],
+        confidence: 0.9,
+        createdAt: "2026-06-15T10:00:00.000Z",
+        updatedAt: "2026-06-15T10:00:00.000Z"
+      }
+    ];
+    const files = buildNotebook(records, { ...options, cells });
+    for (const file of files) {
+      expect(file.content, file.path).not.toContain("\n\n\n");
+    }
+    // The "rebuildable" disclaimer flows straight into the next quote line —
+    // one continuous blockquote, not two stacked ones separated by a blank.
+    const index = byPath(files, "Agent Memory/Notebook/Notebook.md");
+    expect(index).toContain("manually.\n> ");
+  });
+
   it("localizes the notebook structure to the selected language", () => {
     const files = buildNotebook(records, { ...options, locale: "zh-cn" });
     const index = byPath(files, "Agent Memory/Notebook/Notebook.md");

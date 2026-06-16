@@ -172,7 +172,7 @@ function renderIndex(
 
   if (options.generatedAt) lines.push("", `${L.updated}: ${options.generatedAt}`);
   lines.push("");
-  return lines.join("\n");
+  return joinLines(lines);
 }
 
 function renderPage(
@@ -183,6 +183,7 @@ function renderPage(
   cells: MemoryCell[]
 ): string {
   const lines = header(page.title, L, options.generatedAt);
+  lines.push(""); // the header blockquote precedes a heading here — keep them apart
 
   // Optional agent synthesis (hybrid "enrich" pass).
   const synthesis = options.synthesis?.get(page.sourceFile)?.trim();
@@ -239,7 +240,7 @@ function renderPage(
 
   // Backlink to the index for navigation.
   lines.push(`${L.seeAlso}: ${link(`${base}/Notebook`, L.notebookName)}`, "");
-  return lines.join("\n");
+  return joinLines(lines);
 }
 
 function renderChapter(
@@ -261,7 +262,7 @@ function renderChapter(
     );
   }
   lines.push("", `${L.seeAlso}: ${link(`${base}/Notebook`, L.notebookName)}`, "");
-  return lines.join("\n");
+  return joinLines(lines);
 }
 
 /**
@@ -285,7 +286,7 @@ function renderLearnerSummary(
     lines.push(`## ${title}`, "");
     pushCellBullets(lines, group, options.memoryRoot, L);
   }
-  return lines.join("\n");
+  return joinLines(lines);
 }
 
 /** Append cell links as a bullet list, or a single "none" bullet when empty. */
@@ -312,19 +313,32 @@ function cellLink(memoryRoot: string, cell: MemoryCell): string {
  * notebook is self-explanatory in the learner's language even on first open.
  */
 function renderDeclaration(options: NotebookOptions, L: NotebookLabels): string {
-  return [...header(L.declarationTitle, L, options.generatedAt), ...L.declaration].join("\n");
+  return joinLines([...header(L.declarationTitle, L, options.generatedAt), ...L.declaration]);
 }
 
 // --- helpers ----------------------------------------------------------------
 
+// The title + the "generated, rebuildable" disclaimer as a blockquote. No
+// trailing blank: a caller whose next line is also a `>` quote (index, chapter,
+// summary, declaration) flows into one continuous blockquote; a caller that
+// follows with a heading (a page) adds its own blank.
 function header(title: string, L: NotebookLabels, generatedAt?: string): string[] {
   return [
     `# ${title}`,
     "",
     `> ${L.generatedNote}`,
-    ...(generatedAt ? [`> ${L.updated}: ${generatedAt}`] : []),
-    ""
+    ...(generatedAt ? [`> ${L.updated}: ${generatedAt}`] : [])
   ];
+}
+
+/** Join lines, collapsing any run of blank lines down to a single blank. */
+function joinLines(lines: string[]): string {
+  const out: string[] = [];
+  for (const line of lines) {
+    if (line === "" && out[out.length - 1] === "") continue;
+    out.push(line);
+  }
+  return out.join("\n");
 }
 
 function fmt(template: string, vars: Record<string, string | number>): string {
