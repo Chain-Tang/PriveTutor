@@ -1,14 +1,138 @@
 # Annotation Tutor Lite
 
-A self-contained Obsidian plugin that turns learning annotations into
-agent-readable Markdown memory — **no server, MCP, SQLite, or model API key**.
-Everything lives as Markdown in your Vault; any agent (Claude Code, OpenCode,
-Codex) interacts purely through files.
+**Turn what you read into learning memory your AI tutor can actually use — all in
+plain Markdown, all on your machine.**
 
-This is the "Lite" sibling of the full Annotation Tutor in the parent repo. It is
-a standalone project (its own build, not part of the monorepo workspace).
+Annotation Tutor Lite is a self-contained Obsidian plugin. You highlight a passage,
+write what you think it means, and an AI tutor reviews it, distills durable **memory
+cells**, and brings them back on a forgetting-curve schedule so you remember. There's
+**no server, no database, no model API key baked in** — every artifact is a Markdown
+file in your Vault, so any agent (Claude Code, OpenCode, Codex) can read and extend it.
 
-## Quick start
+> The "Lite" sibling of the full Annotation Tutor. It's a standalone project (its own
+> build; not part of the monorepo workspace).
+
+## Why it's different
+
+- 🗂 **Your data stays yours.** Annotations, reviews, cells, scenes, and your learner
+  profile are all human-readable Markdown in your Vault. Nothing is locked in a binary.
+- 🧠 **A real learning loop, not just notes.** Reviews become **memory cells**, cells
+  auto-group into **scenes**, and **spaced repetition (SM-2)** schedules them before you
+  forget — grounded in the Ebbinghaus forgetting curve.
+- 📓 **A study notebook that reads like a book.** One command turns scattered
+  annotations into a navigable notebook with dated links chaining
+  notebook → annotation → original source.
+- 🌐 **Read in any language.** Inline word/phrase glosses (`Alt+T`) and full-document
+  pre-translation (`Ctrl+Alt+T`) for immersive reading.
+- 🔌 **Bring your own engine.** Use the already-authenticated **OpenCode** CLI or any
+  **OpenAI-compatible API** — your key lives only in your Vault's local plugin data.
+- 🌏 **Fully localized UI** in English, 简体中文, 繁體中文, and 日本語.
+
+## Install (for users — no Node required)
+
+1. Download the latest release assets from the
+   [**Releases** page](https://github.com/Chain-Tang/PriveTutor/releases):
+   either the `annotation-tutor-lite-<version>.zip`, **or** the three loose files
+   `main.js`, `manifest.json`, `styles.css`.
+2. Put them in a folder named `annotation-tutor-lite` inside your Vault:
+   `<YourVault>/.obsidian/plugins/annotation-tutor-lite/`
+   (unzipping the zip there creates this folder for you).
+3. In Obsidian, open **Settings → Community plugins**, turn off Restricted mode if
+   needed, then enable **Annotation Tutor Lite**. Reload (`Ctrl/Cmd+R`) on first install.
+
+Then [connect an engine](#connect-an-engine) and you're ready.
+
+## Connect an engine
+
+Reviews, the tutor chat, and translation run on one engine — pick it in
+**Settings → General**:
+
+- **OpenCode** (recommended; it can read your Vault directly). Install and log in to the
+  [`opencode`](https://opencode.ai) CLI yourself, then set the engine to **OpenCode**.
+  The plugin drives your already-authenticated CLI over ACP — **no API key is stored**.
+  Default model is `opencode/mimo-v2.5-free`; change **Agent model** to use another.
+- **Direct API** (default): any OpenAI-compatible endpoint. Defaults target DeepSeek
+  (`https://api.deepseek.com/v1`, model `deepseek-chat`) — paste your key under
+  **API key**. The key lives only in your Vault's local plugin data, never in this repo.
+
+No cloud services or credentials ship with this plugin.
+
+## How it works
+
+1. Select text in a note → **Add learning annotation** (`Ctrl/Cmd+Shift+L`) → write your
+   understanding. The plugin inserts an Obsidian block id (`^ann-…`) and a per-annotation
+   Markdown file under `Agent Memory/annotations/`.
+2. **Ask the agent** to review it. Your engine reads the files (guided by
+   `Agent Memory/AGENTS.md`), writes a review into the annotation's **Agent Review**
+   section, and can distill a **memory cell**.
+3. Cells with a shared concept auto-form a **scene**; your **learner profile** tracks
+   durable facts about you over time.
+4. **Spaced repetition** resurfaces due cells; **Build notebook** turns everything into a
+   readable study notebook.
+
+The plugin owns the metadata, Selected Text, and User Note; the agent owns the Agent
+Review / Review History sections, which are preserved verbatim on every plugin edit.
+`index.json` (under the plugin folder) is a rebuildable cache — **Rebuild Annotation
+Tutor index** regenerates it from the Markdown.
+
+## Core concepts
+
+- **Memory cell** — an atomic, evidence-backed memory distilled from one or more
+  annotations (a concept, your grasp of it, a confidence, and a spaced-repetition
+  schedule). This is the unit your tutor remembers and reviews.
+- **Scene** — a context that groups related cells. Scenes form **automatically** once
+  two or more cells share a concept; you (or the agent) can also author your own.
+- **Learner profile** — an auditable, plain-Markdown model of you: claims about your
+  strengths, gaps, and goals, each backed by evidence. The tutor uses it to personalize.
+- **Notebook** — a generated, human-readable study notebook (per-document pages, concept
+  chapters, a strengths/weaknesses summary) with dated links back to every annotation
+  and source.
+
+→ Full explanations, the data model, and how each piece is triggered are in
+**[docs/guide.md](docs/guide.md)**.
+
+## Keyboard shortcuts
+
+Defaults (Mod = `Ctrl` on Windows/Linux, `Cmd` on macOS):
+
+| Action | Shortcut |
+| --- | --- |
+| Add learning annotation | `Ctrl/Cmd + Shift + L` |
+| Translate selection (inline gloss) | `Alt + T` |
+| Pre-translate whole document (full-text) | `Ctrl/Cmd + Alt + T` |
+
+Every other command (Open study notebook, Build notebook, Review due cells, Open tutor
+chat, …) has **no default hotkey** — assign one in **Settings → Hotkeys** by searching
+for "Annotation Tutor Lite".
+
+## Vault layout
+
+```
+Agent Memory/
+├── annotations/ANN-YYYYMMDD-NNN.md   # source of truth, one per annotation
+├── memory-cells/MEM-*.md             # atomic, evidence-backed memories (+ SRS schedule)
+├── scenes/SCENE-*.md                 # auto-grouped or hand-authored contexts
+├── profiles/
+│   ├── learner-profile.md            # auditable long-term learner model
+│   └── preferences.md                # optional; Agent writes disabled by default
+├── indexes/{annotations,cells,scenes}.md
+├── proposals/{pending,archive}/      # confirmation-mode review queue
+├── Notebook/                         # generated study notebook
+│   ├── Notebook.md                   #   entry point / map of content
+│   ├── pages/<doc>.md                #   one literature note per studied document
+│   ├── chapters/<topic>.md           #   concept chapters grouping related pages
+│   └── Learning summary.md           #   strengths / weaknesses / methods
+├── annotation-memory.md              # generated overview / agent entry point
+├── recent-learning.md                # generated short summary
+├── agent-inbox.md                    # task queue
+└── AGENTS.md                         # generated agent instructions
+```
+
+New files use YAML Properties plus readable Markdown bodies and Obsidian Wikilinks.
+Memory writes default to `direct`; switch to `confirmation` in settings to route proposed
+Cell/Scene/Profile changes through the **Proposals** tab.
+
+## Development
 
 Requires **Node 22.13+** and **pnpm 10**.
 
@@ -16,106 +140,23 @@ Requires **Node 22.13+** and **pnpm 10**.
 git clone https://github.com/Chain-Tang/PriveTutor.git
 cd PriveTutor/TutorLite
 pnpm install
-pnpm build                 # -> dist/main.js
 ```
 
-Install the built plugin into your own Vault, then enable it in **Settings →
-Community plugins**:
-
-```bash
-# copies manifest.json, main.js, styles.css into
-# <YourVault>/.obsidian/plugins/annotation-tutor-lite/
-pnpm install:dev-plugin -- --vault "C:\path\to\YourVault"
-```
-
-Reload Obsidian (`Ctrl/Cmd+R`) after the first install. To install by hand
-instead, copy `manifest.json`, `styles.css`, and `dist/main.js` (renamed to
-`main.js`) into that plugin folder yourself.
-
-## Connect an engine (OpenCode or API)
-
-Reviews, the tutor chat, and translation run on one of two engines — pick it in
-**Settings → General**:
-
-- **OpenCode** (recommended; it can read your Vault directly). Install and log in
-  to the [`opencode`](https://opencode.ai) CLI yourself, then set the engine to
-  **OpenCode**. The plugin drives your already-authenticated CLI over ACP — **no
-  API key is stored**. Default model is `opencode/mimo-v2.5-free`; change **Agent
-  model** to use another.
-- **Direct API** (default): any OpenAI-compatible endpoint. Defaults target
-  DeepSeek (`https://api.deepseek.com/v1`, model `deepseek-chat`) — paste your key
-  under **API key**. The key lives only in your Vault's local plugin data, never
-  in this repo.
-
-No cloud services, model keys, or credentials ship with this plugin: agents
-authenticate through their own CLIs and all data stays in your Vault.
-
-## How it works
-
-1. Select text in a note → **Add learning annotation** → write your understanding.
-2. The plugin inserts an Obsidian block id (`^ann-…`) and writes a per-annotation
-   Markdown file under `Agent Memory/annotations/`.
-3. **Ask Agent** writes a task into `Agent Memory/agent-inbox.md`. You run your
-   agent in the Vault; it reads the files (guided by `Agent Memory/AGENTS.md`),
-   writes a review into the annotation's **Agent Review** section, and marks the
-   task `completed`.
-4. The plugin watches the files, validates Agent writes, rebuilds its cache and
-   Markdown indexes, and refreshes the Obsidian UI.
-
-The plugin owns the metadata, Selected Text, and User Note; the agent owns the
-Agent Review / Review History sections, which are preserved verbatim on every
-plugin edit. `index.json` (under the plugin folder) is a rebuildable cache —
-**Rebuild Annotation Tutor index** regenerates it from the Markdown files.
-
-## Vault layout
-
-```
-Agent Memory/
-├── annotations/ANN-YYYYMMDD-NNN.md   # source of truth, one per annotation
-├── memory-cells/CELL-YYYYMMDD-NNN.md # atomic, evidence-backed memories
-├── scenes/SCENE-*.md                  # topic/course/document/project contexts
-├── profiles/
-│   ├── learner-profile.md             # auditable long-term learner model
-│   └── preferences.md                 # optional, disabled for Agent writes by default
-├── indexes/
-│   ├── annotations.md
-│   ├── cells.md
-│   └── scenes.md
-├── proposals/
-│   ├── pending/                       # confirmation-mode review queue
-│   └── archive/
-├── annotation-memory.md              # generated overview / agent entry point
-├── recent-learning.md                # generated short summary
-├── agent-inbox.md                    # task queue
-└── AGENTS.md                         # generated agent instructions
-```
-
-New files use YAML Properties plus readable Markdown bodies and Obsidian
-Wikilinks. Legacy annotation and `MEM-*` files remain readable. The plugin
-settings contain six tabs — General, Annotations, Cells, Scenes, Profile, and
-Proposals — while the existing annotation dashboard remains available for
-high-frequency annotation work.
-
-Agent memory writes default to `direct`. Switch to `confirmation` in settings
-to require proposed Cell, Scene, and Profile changes to pass through the
-Proposals tab. Preference memory is stored separately and Agent access is
-disabled by default.
-
-## Development
-
-Requires Node 22.13+ and pnpm 10.
-
-- `pnpm install` — install dev dependencies (isolated from the parent workspace).
 - `pnpm typecheck` / `pnpm test` / `pnpm build` — the gate.
 - `pnpm dev` — esbuild watch.
-- `pnpm install:dev-plugin -- --vault ../Tutor` — copy the built plugin into a
-  dev Vault (defaults to `../Tutor`); the id `annotation-tutor-lite` lets it
-  coexist with the full plugin. Then enable it in Obsidian.
+- `pnpm package` — build + stage `dist/release/annotation-tutor-lite/` and a release zip.
+- `pnpm install:dev-plugin -- --vault ../Tutor` — copy the built plugin into a dev Vault
+  (defaults to `../Tutor`); the id `annotation-tutor-lite` lets it coexist with the full
+  plugin. `pnpm install:vault` builds then installs in one step.
 
 ## Architecture
 
 Pure, unit-tested logic (no Obsidian imports): `src/model.ts`, `src/ids.ts`,
-`src/anchors.ts`, `src/index-table.ts`, `src/markdown/*`. Obsidian-bound layer:
-`src/store.ts` (file I/O + self-write loop-guard), `src/watcher.ts`,
-`src/decorations.ts`, `src/editor.ts`, `src/settings.ts`, `src/views/*`, and
+`src/anchors.ts`, `src/srs.ts`, `src/memory-derive.ts`, `src/learning.ts`,
+`src/index-table.ts`, `src/markdown/*`. Obsidian-bound layer: `src/store.ts`
+(file I/O + self-write loop-guard), `src/watcher.ts`, `src/decorations.ts`,
+`src/editor.ts`, `src/settings.ts`, `src/views/*`, the `*-controller.ts` modules, and
 `src/main.ts` (wiring). Tests live in `tests/`.
+
+See **[docs/guide.md](docs/guide.md)** for the learning model and
+`PrivTutor Lite MVP Design Spec.md` for the original product baseline.
