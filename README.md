@@ -1,21 +1,5 @@
 # 🎓 Annotation Tutor
 
-<p align="center">
-  <img src="Screenshots/Screenshot 2026-06-08 033945.png" alt="Annotation Tutor" width="800">
-</p>
-
-<p align="center">
-  <b>Turn your Obsidian highlights into a private, AI-reviewed learning memory — fully local.</b>
-</p>
-
-<p align="center">
-  <img src="https://img.shields.io/badge/node-%3E%3D22.17.0-blue?logo=node.js" alt="Node.js Version">
-  <img src="https://img.shields.io/badge/pnpm-%3E%3D10-orange?logo=pnpm" alt="pnpm Version">
-  <img src="https://img.shields.io/github/actions/workflow/status/Chain-Tang/PriveTutor/ci.yml?branch=main&label=build&logo=github" alt="Build Status">
-  <img src="https://img.shields.io/github/stars/Chain-Tang/PriveTutor?style=social" alt="GitHub Stars">
-</p>
-
----
 
 ## What is this?
 
