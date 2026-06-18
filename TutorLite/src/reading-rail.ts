@@ -136,10 +136,13 @@ export class ReadingRail {
       const mark = byId.get(id);
       if (!mark) continue;
       // Prefer the underlined span (so the connector meets the end of the
-      // underlined text); fall back to the marker glyph when styling is off.
-      const span = scroller.querySelector<HTMLElement>(
+      // underlined text); fall back to the marker glyph when styling is off. A
+      // match split across inline markup or soft line breaks yields several
+      // spans, so take the LAST to reach the very end of the underline.
+      const spans = scroller.querySelectorAll<HTMLElement>(
         `[data-atl-id="${id}"]:not(.atl-marker)`
       );
+      const span = spans.item(spans.length - 1);
       const marker = scroller.querySelector<HTMLElement>(
         `.atl-marker[data-atl-id="${id}"]`
       );

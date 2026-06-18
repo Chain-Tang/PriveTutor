@@ -85,6 +85,7 @@ import {
   type DialogueReplyResult
 } from "./margin-rail.js";
 import { ReadingRail } from "./reading-rail.js";
+import { highlightFirst } from "./reading-highlight.js";
 import { setLanguage, t } from "./i18n.js";
 import {
   DASHBOARD_VIEW_TYPE,
@@ -1407,7 +1408,7 @@ export default class AnnotationTutorLitePlugin extends Plugin {
         if (el.querySelector(`[data-atl-id="${record.annotationId}"]`)) continue;
         const underlined =
           cls && record.selectedText
-            ? underlineFirst(el, record.selectedText, cls, record.annotationId, (id, anchor) =>
+            ? highlightFirst(el, record.selectedText, cls, record.annotationId, (id, anchor) =>
                 void this.openInlineNote(id, anchor)
               )
             : false;
@@ -2053,44 +2054,3 @@ export default class AnnotationTutorLitePlugin extends Plugin {
   }
 }
 
-/**
- * Wrap the first occurrence of `text` within `el` in a styled span, tagged with
- * the annotation id and made clickable so it is itself the comment toggle.
- * Returns whether the span was applied, so the caller can fall back to a marker
- * glyph when the text could not be wrapped (e.g. it crosses inline markup).
- */
-function underlineFirst(
-  el: HTMLElement,
-  text: string,
-  cls: string,
-  id: string,
-  onClick: (id: string, anchor: HTMLElement) => void
-): boolean {
-  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
-  let node = walker.nextNode();
-  while (node) {
-    const value = node.nodeValue ?? "";
-    const index = value.indexOf(text);
-    if (index >= 0) {
-      const range = document.createRange();
-      range.setStart(node, index);
-      range.setEnd(node, index + text.length);
-      const span = document.createElement("span");
-      span.className = cls;
-      span.dataset["atlId"] = id;
-      span.addEventListener("click", (event) => {
-        event.preventDefault();
-        onClick(id, span);
-      });
-      try {
-        range.surroundContents(span);
-        return true;
-      } catch {
-        // Range crossed element boundaries (inline markup); leave it unstyled.
-        return false;
-      }
-    }
-    node = walker.nextNode();
-  }
-  return false;
-}
