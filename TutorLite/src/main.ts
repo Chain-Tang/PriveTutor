@@ -540,7 +540,21 @@ export default class AnnotationTutorLitePlugin extends Plugin {
       id: "translate-selection",
       name: t("cmd.translate"),
       hotkeys: [{ modifiers: ["Alt"], key: "t" }],
-      editorCallback: (editor) => void this.translation.translateSelection(editor)
+      // A checkCallback (not editorCallback) so the hotkey also fires in Reading
+      // view, where there is no editor — that is where immersive reading happens.
+      checkCallback: (checking) => {
+        const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+        if (!view?.file) return false;
+        if (checking) return true;
+        if (view.getMode() === "preview") {
+          const selection =
+            view.contentEl.ownerDocument.getSelection()?.toString() ?? "";
+          void this.translation.translateReadingSelection(view.file, selection);
+        } else {
+          void this.translation.translateSelection(view.editor);
+        }
+        return true;
+      }
     });
     this.addCommand({
       id: "pretranslate-document",
@@ -841,6 +855,7 @@ export default class AnnotationTutorLitePlugin extends Plugin {
   private onReadingContextMenu(event: MouseEvent): void {
     const view = this.app.workspace.getActiveViewOfType(MarkdownView);
     if (!view?.file || view.getMode() !== "preview") return;
+    const file = view.file;
     const scroller = view.contentEl.querySelector(".markdown-preview-view");
     if (!scroller || !scroller.contains(event.target as Node)) return;
     const selection = window.getSelection()?.toString().trim() ?? "";
@@ -853,6 +868,14 @@ export default class AnnotationTutorLitePlugin extends Plugin {
         .setTitle(t("menu.addAnnotation"))
         .setIcon("highlighter")
         .onClick(() => void this.createAnnotationFromReading(view, selection))
+    );
+    menu.addItem((item) =>
+      item
+        .setTitle(t("menu.translate"))
+        .setIcon("languages")
+        .onClick(() =>
+          void this.translation.translateReadingSelection(file, selection)
+        )
     );
     menu.showAtMouseEvent(event);
   }

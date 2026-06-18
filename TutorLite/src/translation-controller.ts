@@ -28,8 +28,15 @@ import {
   cleanGloss,
   formatWordGloss,
   nativeLanguageName,
-  stripWrapper
+  stripWrapper,
+  type TranslateMode
 } from "./translate.js";
+
+/** Outcome of resolving a selection's gloss through a live model call. */
+type LiveGloss =
+  | { kind: "ok"; replacement: string; word?: GlossaryEntry }
+  | { kind: "noop" }
+  | { kind: "fail"; outcome: ReviewOutcome };
 
 export type TranslationDeps = {
   app: App;
@@ -65,38 +72,54 @@ export class TranslationController {
   }
 
   /**
-   * Try to gloss the selection from the active file's cached pre-translation.
-   * Returns true when it answered (cache hit); false to fall back to a live call.
+   * The inline replacement for a selection from the active file's cached
+   * pre-translation, or null when the cache does not cover it (so the caller
+   * falls back to a live call). Pure: no editor/file/notice side effects, so the
+   * editor and Reading-view paths can each apply it their own way.
    */
-  private translateFromCache(
-    editor: Editor,
-    from: EditorPosition,
-    to: EditorPosition,
-    selection: string,
-    mode: ReturnType<typeof classifyTranslateSelection>
-  ): boolean {
+  private glossFromCache(selection: string, mode: TranslateMode): string | null {
     const file = this.deps.app.workspace.getActiveFile();
     const glossary = file ? this.glossaryCache.get(file.path) : undefined;
-    if (!glossary) return false;
-    let replacement: string | null = null;
+    if (!glossary) return null;
     if (mode === "word") {
       const gloss = lookupGloss(glossary, selection);
       if (gloss) {
-        replacement = formatWordGloss(selection, gloss);
-      } else {
-        const glossed = applyGlossary(selection, glossary);
-        if (glossed !== selection) replacement = glossed;
+        const replacement = formatWordGloss(selection, gloss);
+        return replacement === selection ? null : replacement;
       }
-    } else {
-      const glossed = applyGlossary(selection, glossary);
-      if (glossed !== selection) replacement = glossed;
     }
-    if (!replacement || replacement === selection) return false;
-    if (!this.replaceSelection(editor, from, to, selection, replacement)) {
-      return false;
-    }
-    new Notice(t("notice.translateDone"));
-    return true;
+    const glossed = applyGlossary(selection, glossary);
+    return glossed !== selection ? glossed : null;
+  }
+
+  /**
+   * Resolve a selection's gloss with one live model call, formatting it for the
+   * mode (a single "word (meaning)" or a passage with inline glosses). Shared by
+   * the editor and Reading-view paths; neither touches the document here.
+   */
+  private async liveGloss(
+    selection: string,
+    contextLine: string,
+    mode: TranslateMode,
+    target: string
+  ): Promise<LiveGloss> {
+    const prompt =
+      mode === "word"
+        ? buildWordGlossPrompt(selection.trim(), contextLine, target)
+        : buildPassageGlossPrompt(selection, target);
+    const outcome = await this.deps.captureText(prompt, this.deps.chatTimeoutMs());
+    if (outcome.kind !== "ok") return { kind: "fail", outcome };
+    const wordGloss = mode === "word" ? cleanGloss(outcome.reviewText) : "";
+    const replacement =
+      mode === "word"
+        ? formatWordGloss(selection, wordGloss)
+        : stripWrapper(outcome.reviewText);
+    if (!replacement.trim() || replacement === selection) return { kind: "noop" };
+    const word =
+      mode === "word" && wordGloss
+        ? { surface: selection.trim(), gloss: wordGloss }
+        : undefined;
+    return word ? { kind: "ok", replacement, word } : { kind: "ok", replacement };
   }
 
   /**
@@ -238,8 +261,9 @@ export class TranslationController {
   }
 
   /**
-   * Alt+T: gloss the selection inline for immersive reading. A single word/term
-   * becomes "word (meaning)"; a passage gets every foreign word glossed in place.
+   * Alt+T in the editor (Live Preview / Source): gloss the selection inline for
+   * immersive reading. A single word/term becomes "word (meaning)"; a passage
+   * gets every foreign word glossed in place.
    */
   public async translateSelection(editor: Editor): Promise<void> {
     const selection = editor.getSelection();
@@ -249,45 +273,31 @@ export class TranslationController {
     }
     const from = editor.getCursor("from");
     const to = editor.getCursor("to");
-    const target = this.dictionaryLanguageName();
     const mode = classifyTranslateSelection(selection);
 
     // Fast path: answer from the pre-translation cache when it covers the
     // selection. Otherwise fall through to a live model call.
-    if (this.translateFromCache(editor, from, to, selection, mode)) return;
+    const cached = this.glossFromCache(selection, mode);
+    if (cached && this.replaceSelection(editor, from, to, selection, cached)) {
+      new Notice(t("notice.translateDone"));
+      return;
+    }
 
     const progress = new Notice(t("notice.translating"), 0);
     try {
-      const prompt =
-        mode === "word"
-          ? buildWordGlossPrompt(
-              selection.trim(),
-              lineTextWithoutBlockId(editor.getLine(from.line)),
-              target
-            )
-          : buildPassageGlossPrompt(selection, target);
-      const outcome = await this.deps.captureText(prompt, this.deps.chatTimeoutMs());
-      if (outcome.kind !== "ok") {
-        this.noticeForTranslate(outcome);
-        return;
-      }
-      const wordGloss = mode === "word" ? cleanGloss(outcome.reviewText) : "";
-      const replacement =
-        mode === "word"
-          ? formatWordGloss(selection, wordGloss)
-          : stripWrapper(outcome.reviewText);
-      if (!replacement.trim() || replacement === selection) {
-        new Notice(t("notice.translateFailed", { detail: t("notice.translateEmpty") }));
-        return;
-      }
-      if (!this.replaceSelection(editor, from, to, selection, replacement)) {
+      const result = await this.liveGloss(
+        selection,
+        lineTextWithoutBlockId(editor.getLine(from.line)),
+        mode,
+        this.dictionaryLanguageName()
+      );
+      if (!this.handleLiveOutcome(result)) return;
+      if (!this.replaceSelection(editor, from, to, selection, result.replacement)) {
         new Notice(t("notice.translateFailed", { detail: t("chat.edit.notLocated") }));
         return;
       }
       // Self-healing cache: a missed word is glossed live once, then remembered.
-      if (mode === "word" && wordGloss) {
-        this.cacheWordGloss(selection.trim(), wordGloss);
-      }
+      if (result.word) this.cacheWordGloss(result.word.surface, result.word.gloss);
       new Notice(t("notice.translateDone"));
     } catch (error) {
       new Notice(
@@ -298,6 +308,90 @@ export class TranslationController {
     } finally {
       progress.hide();
     }
+  }
+
+  /**
+   * Alt+T in Reading view, where there is no editor: translate the rendered
+   * selection and write the gloss back into the source file (the view then
+   * re-renders with it). The first matching occurrence is glossed, mirroring how
+   * Reading-view annotations locate their text.
+   */
+  public async translateReadingSelection(
+    file: TFile,
+    rawSelection: string
+  ): Promise<void> {
+    const selection = rawSelection.trim();
+    if (!selection) {
+      new Notice(t("notice.translateSelect"));
+      return;
+    }
+    const mode = classifyTranslateSelection(selection);
+
+    const cached = this.glossFromCache(selection, mode);
+    if (cached && (await this.replaceInFile(file, selection, cached))) {
+      new Notice(t("notice.translateDone"));
+      return;
+    }
+
+    const progress = new Notice(t("notice.translating"), 0);
+    try {
+      const content = await this.deps.app.vault.cachedRead(file);
+      const result = await this.liveGloss(
+        selection,
+        sourceLineContaining(content, selection) ?? selection,
+        mode,
+        this.dictionaryLanguageName()
+      );
+      if (!this.handleLiveOutcome(result)) return;
+      if (!(await this.replaceInFile(file, selection, result.replacement))) {
+        new Notice(t("notice.translateFailed", { detail: t("chat.edit.notLocated") }));
+        return;
+      }
+      if (result.word) this.cacheWordGloss(result.word.surface, result.word.gloss);
+      new Notice(t("notice.translateDone"));
+    } catch (error) {
+      new Notice(
+        t("notice.translateFailed", {
+          detail: error instanceof Error ? error.message : String(error)
+        })
+      );
+    } finally {
+      progress.hide();
+    }
+  }
+
+  /**
+   * Narrow a live-gloss outcome to the success case, showing the right notice for
+   * a failure or an empty result. Returns true only when there is a replacement.
+   */
+  private handleLiveOutcome(
+    result: LiveGloss
+  ): result is Extract<LiveGloss, { kind: "ok" }> {
+    if (result.kind === "fail") {
+      this.noticeForTranslate(result.outcome);
+      return false;
+    }
+    if (result.kind === "noop") {
+      new Notice(t("notice.translateFailed", { detail: t("notice.translateEmpty") }));
+      return false;
+    }
+    return true;
+  }
+
+  /** Replace the first occurrence of `original` in `file`; true when found. */
+  private async replaceInFile(
+    file: TFile,
+    original: string,
+    replacement: string
+  ): Promise<boolean> {
+    let found = false;
+    await this.deps.app.vault.process(file, (data) => {
+      const idx = data.indexOf(original);
+      if (idx === -1) return data;
+      found = true;
+      return data.slice(0, idx) + replacement + data.slice(idx + original.length);
+    });
+    return found;
   }
 
   /** Replace `original` at the captured range, re-locating it by text if it shifted. */
@@ -338,4 +432,12 @@ export class TranslationController {
         return;
     }
   }
+}
+
+/** The source line that contains `selection`, block id stripped, or null. */
+function sourceLineContaining(content: string, selection: string): string | null {
+  for (const line of content.split(/\r?\n/)) {
+    if (line.includes(selection)) return lineTextWithoutBlockId(line);
+  }
+  return null;
 }
