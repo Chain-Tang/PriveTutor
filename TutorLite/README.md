@@ -80,6 +80,27 @@ pnpm package
 
 Then [connect an engine](#connect-an-engine) and you're ready.
 
+## First run
+
+After enabling the plugin, **reload Obsidian once** (`Ctrl/Cmd+R`). Everything it needs is
+created automatically — you don't make any folders yourself:
+
+1. **Reload.** An `Agent Memory/` folder appears at your Vault root, scaffolded with
+   `annotations/`, `memory-cells/`, `scenes/`, `profiles/` (with an empty
+   `learner-profile.md`), and an **`AGENTS.md`** describing the file protocol for external
+   agents. (The folder name is the **Memory folder** setting; `AGENTS.md` comes from the
+   **Create agent instruction file** toggle — both on by default.)
+2. **Choose an engine** in **Settings → Annotation Tutor Lite** — see
+   [Connect an engine](#connect-an-engine). For OpenCode you just install and
+   `opencode auth login` the CLI once; nothing extra is written into your Vault (no
+   `.opencode` config, no API key).
+3. **Annotate.** Select text → `Ctrl/Cmd+Shift+L` → write your understanding → ask the
+   tutor to review it.
+
+> The three files in the download (`main.js`, `manifest.json`, `styles.css`) are the whole
+> plugin — all the source is bundled into `main.js`. The `Agent Memory/` notes are
+> generated in your Vault on first run, not shipped in the download.
+
 ## Platform support
 
 Desktop **Windows, macOS, and Linux** are all supported (Obsidian 1.12.4+); the plugin is

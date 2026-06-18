@@ -79,6 +79,26 @@ pnpm package
 
 随后 [连接一个引擎](#连接一个引擎)，即可开始使用。
 
+## 首次运行
+
+启用插件后，**重新加载一次 Obsidian**（`Ctrl/Cmd+R`）。它所需的一切都会自动创建 ——
+你无需手动建立任何文件夹：
+
+1. **重新加载。** Vault 根目录下会出现一个 `Agent Memory/` 文件夹，并自动搭建好
+   `annotations/`、`memory-cells/`、`scenes/`、`profiles/`（含一个空的
+   `learner-profile.md`），以及一份描述文件协议、供外部智能体阅读的 **`AGENTS.md`**。
+   （文件夹名称由 **记忆文件夹（Memory folder）** 设置决定；`AGENTS.md` 由 **创建代理
+   说明文件（Create agent instruction file）** 开关控制 —— 两者默认开启。）
+2. **选择一个引擎**：在 **设置 → Annotation Tutor Lite** 中选择，详见
+   [连接一个引擎](#连接一个引擎)。使用 OpenCode 时，只需安装并执行一次
+   `opencode auth login` 登录 CLI 即可；不会向你的 Vault 写入任何额外内容（没有
+   `.opencode` 配置，也没有 API 密钥）。
+3. **开始批注。** 选中文字 → `Ctrl/Cmd+Shift+L` → 写下你的理解 → 请导师点评。
+
+> 下载包中的三个文件（`main.js`、`manifest.json`、`styles.css`）就是插件的全部 ——
+> 所有源码都已打包进 `main.js`。`Agent Memory/` 笔记是在首次运行时于你的 Vault 中
+> 生成的，并不包含在下载包里。
+
 ## 平台支持
 
 桌面端 **Windows、macOS 与 Linux** 均受支持（需 Obsidian 1.12.4+）；本插件仅限桌面端
