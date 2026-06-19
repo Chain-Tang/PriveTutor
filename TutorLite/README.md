@@ -1,9 +1,20 @@
-# Annotation Tutor Lite
+<div align="center">
+
+# 📝 Annotation Tutor Lite
 
 **English** · [简体中文](README.zh-CN.md)
 
-**Turn what you read into learning memory your AI tutor can actually use — all in
-plain Markdown, all on your machine.**
+**Turn what you read into learning memory your AI tutor can actually use —
+all in plain Markdown, all on your machine.**
+
+[![Release](https://img.shields.io/github/v/release/Chain-Tang/PriveTutor?label=release&color=7c3aed)](https://github.com/Chain-Tang/PriveTutor/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/Chain-Tang/PriveTutor/total?color=7c3aed)](https://github.com/Chain-Tang/PriveTutor/releases)
+![Obsidian](https://img.shields.io/badge/Obsidian-1.12.4%2B-7c3aed)
+![Desktop](https://img.shields.io/badge/desktop-Windows%20%7C%20macOS%20%7C%20Linux-informational)
+
+<img src="docs/images/hero.png" alt="An annotated note with an inline highlight and a margin comment card" width="820">
+
+</div>
 
 Annotation Tutor Lite is a self-contained Obsidian plugin. You highlight a passage,
 write what you think it means, and an AI tutor reviews it, distills durable **memory
@@ -14,7 +25,7 @@ file in your Vault, so any agent (Claude Code, OpenCode, Codex) can read and ext
 > The "Lite" sibling of the full Annotation Tutor. It's a standalone project (its own
 > build; not part of the monorepo workspace).
 
-## Why it's different
+## ✨ Why it's different
 
 - 🗂 **Your data stays yours.** Annotations, reviews, cells, scenes, and your learner
   profile are all human-readable Markdown in your Vault. Nothing is locked in a binary.
@@ -30,7 +41,18 @@ file in your Vault, so any agent (Claude Code, OpenCode, Codex) can read and ext
   **OpenAI-compatible API** — your key lives only in your Vault's local plugin data.
 - 🌏 **Fully localized UI** in English, 简体中文, 繁體中文, and 日本語.
 
-## Download & install
+## 📸 Screenshots
+
+|  |  |
+| :---: | :---: |
+| **Annotate & get a margin review** | **Review due cells (spaced repetition)** |
+| <img src="docs/images/review.png" alt="A highlighted passage with an agent review in a margin card" width="420"> | <img src="docs/images/srs.png" alt="The spaced-repetition review modal grading a memory cell" width="420"> |
+| **A generated study notebook** | **Inline translation while reading** |
+| <img src="docs/images/notebook.png" alt="A generated notebook page chaining notebook to annotation to source" width="420"> | <img src="docs/images/translate.png" alt="An inline gloss inserted after a foreign word" width="420"> |
+
+> Don't have these images yet? See [Adding screenshots](#-adding-screenshots) below.
+
+## 📦 Download & install
 
 Pick whichever method suits you — all install the same plugin into
 `<YourVault>/.obsidian/plugins/annotation-tutor-lite/`. **Methods 1–3 need no Node or
@@ -78,9 +100,9 @@ pnpm install:vault -- --vault "/path/to/YourVault"   # build + copy + enable
 pnpm package
 ```
 
-Then [connect an engine](#connect-an-engine) and you're ready.
+Then [connect an engine](#-connect-an-engine) and you're ready.
 
-## First run
+## 🚀 First run
 
 After enabling the plugin, **reload Obsidian once** (`Ctrl/Cmd+R`). Everything it needs is
 created automatically — you don't make any folders yourself:
@@ -91,7 +113,7 @@ created automatically — you don't make any folders yourself:
    agents. (The folder name is the **Memory folder** setting; `AGENTS.md` comes from the
    **Create agent instruction file** toggle — both on by default.)
 2. **Choose an engine** in **Settings → Annotation Tutor Lite** — see
-   [Connect an engine](#connect-an-engine). For OpenCode you just install and
+   [Connect an engine](#-connect-an-engine). For OpenCode you just install and
    `opencode auth login` the CLI once; nothing extra is written into your Vault (no
    `.opencode` config, no API key).
 3. **Annotate.** Select text → `Ctrl/Cmd+Shift+L` → write your understanding → ask the
@@ -101,21 +123,7 @@ created automatically — you don't make any folders yourself:
 > plugin — all the source is bundled into `main.js`. The `Agent Memory/` notes are
 > generated in your Vault on first run, not shipped in the download.
 
-## Platform support
-
-Desktop **Windows, macOS, and Linux** are all supported (Obsidian 1.12.4+); the plugin is
-desktop-only (mobile is not supported). The pure logic is unit-tested and the
-OS-touching code paths (locating the agent CLI, quoting, path handling) are written for
-all three platforms.
-
-One thing to know if you use the **OpenCode engine**: Obsidian launched from a Dock,
-Start menu, or desktop entry can inherit a minimal `PATH` that omits where CLIs install.
-The plugin compensates by also searching the usual locations — `%APPDATA%\npm` on Windows,
-and `/opt/homebrew/bin`, `/usr/local/bin`, `~/.opencode/bin`, `~/.local/bin`, `~/.bun/bin`
-on macOS/Linux. If your `opencode` lives somewhere unusual, set its full path as the
-engine command, or use the **Direct API** engine (no subprocess, works everywhere).
-
-## Connect an engine
+## 🔌 Connect an engine
 
 Reviews, the tutor chat, and translation run on one engine — pick it in
 **Settings → General**:
@@ -130,7 +138,21 @@ Reviews, the tutor chat, and translation run on one engine — pick it in
 
 No cloud services or credentials ship with this plugin.
 
-## How it works
+## 🖥️ Platform support
+
+Desktop **Windows, macOS, and Linux** are all supported (Obsidian 1.12.4+); the plugin is
+desktop-only (mobile is not supported). The pure logic is unit-tested and the
+OS-touching code paths (locating the agent CLI, quoting, path handling) are written for
+all three platforms.
+
+One thing to know if you use the **OpenCode engine**: Obsidian launched from a Dock,
+Start menu, or desktop entry can inherit a minimal `PATH` that omits where CLIs install.
+The plugin compensates by also searching the usual locations — `%APPDATA%\npm` on Windows,
+and `/opt/homebrew/bin`, `/usr/local/bin`, `~/.opencode/bin`, `~/.local/bin`, `~/.bun/bin`
+on macOS/Linux. If your `opencode` lives somewhere unusual, set its full path as the
+engine command, or use the **Direct API** engine (no subprocess, works everywhere).
+
+## ⚙️ How it works
 
 1. Select text in a note → **Add learning annotation** (`Ctrl/Cmd+Shift+L`) → write your
    understanding. The plugin inserts an Obsidian block id (`^ann-…`) and a per-annotation
@@ -148,7 +170,7 @@ Review / Review History sections, which are preserved verbatim on every plugin e
 `index.json` (under the plugin folder) is a rebuildable cache — **Rebuild Annotation
 Tutor index** regenerates it from the Markdown.
 
-## Core concepts
+## 🧠 Core concepts
 
 - **Memory cell** — an atomic, evidence-backed memory distilled from one or more
   annotations (a concept, your grasp of it, a confidence, and a spaced-repetition
@@ -164,7 +186,7 @@ Tutor index** regenerates it from the Markdown.
 → Full explanations, the data model, and how each piece is triggered are in
 **[docs/guide.md](docs/guide.md)**.
 
-## Keyboard shortcuts
+## ⌨️ Keyboard shortcuts
 
 Defaults (Mod = `Ctrl` on Windows/Linux, `Cmd` on macOS):
 
@@ -178,7 +200,7 @@ Every other command (Open study notebook, Build notebook, Review due cells, Open
 chat, …) has **no default hotkey** — assign one in **Settings → Hotkeys** by searching
 for "Annotation Tutor Lite".
 
-## Vault layout
+## 🗂️ Vault layout
 
 ```
 Agent Memory/
@@ -205,7 +227,7 @@ New files use YAML Properties plus readable Markdown bodies and Obsidian Wikilin
 Memory writes default to `direct`; switch to `confirmation` in settings to route proposed
 Cell/Scene/Profile changes through the **Proposals** tab.
 
-## Development
+## 🛠️ Development
 
 After getting the source ([method 4 above](#4-build-from-source-developers)) and running
 `pnpm install` in `TutorLite/`:
@@ -217,14 +239,51 @@ After getting the source ([method 4 above](#4-build-from-source-developers)) and
   (defaults to `../Tutor`); the id `annotation-tutor-lite` lets it coexist with the full
   plugin. `pnpm install:vault` builds then installs in one step.
 
-## Architecture
+## 🏗️ Architecture
 
 Pure, unit-tested logic (no Obsidian imports): `src/model.ts`, `src/ids.ts`,
 `src/anchors.ts`, `src/srs.ts`, `src/memory-derive.ts`, `src/learning.ts`,
-`src/index-table.ts`, `src/markdown/*`. Obsidian-bound layer: `src/store.ts`
-(file I/O + self-write loop-guard), `src/watcher.ts`, `src/decorations.ts`,
+`src/index-table.ts`, `src/reading-highlight.ts`, `src/markdown/*`. Obsidian-bound layer:
+`src/store.ts` (file I/O + self-write loop-guard), `src/watcher.ts`, `src/decorations.ts`,
 `src/editor.ts`, `src/settings.ts`, `src/views/*`, the `*-controller.ts` modules, and
 `src/main.ts` (wiring). Tests live in `tests/`.
 
 See **[docs/guide.md](docs/guide.md)** for the learning model and
 `PrivTutor Lite MVP Design Spec.md` for the original product baseline.
+
+## 📸 Adding screenshots
+
+The images above live in [`docs/images/`](docs/images) and are referenced with relative
+paths, so they render on the GitHub repo page and in clones. To add or replace them:
+
+1. Capture a screenshot (PNG keeps text crisp; a short GIF is great for demos).
+2. Save it into `docs/images/` using the names this README expects: `hero.png`,
+   `review.png`, `srs.png`, `notebook.png`, `translate.png`.
+3. Commit the files (they're binary, so `git add` them and push):
+   ```bash
+   git add docs/images/*.png README.md
+   git commit -m "docs(TutorLite): add README screenshots"
+   git push
+   ```
+
+Referencing an image two ways:
+
+```markdown
+![Alt text](docs/images/review.png)                  <!-- simple, full width -->
+```
+```html
+<p align="center">
+  <img src="docs/images/review.png" alt="Alt text" width="420">   <!-- sized + centered -->
+</p>
+```
+
+Tips: keep files reasonably small (resize to ~1600px wide / a few hundred KB) so the page
+loads fast; always set `alt` text; use relative paths (not `C:\…` or `file://`) so they
+work for everyone. For a video, drag the file into a GitHub issue/PR comment — GitHub
+uploads it and gives you a `user-images.githubusercontent.com` URL you can paste here.
+
+## 📄 License
+
+This repository does not yet include a license file, so default copyright applies (all
+rights reserved by the author). If you intend it to be open source, add a `LICENSE` (MIT
+is a common, permissive choice) and this section can link to it.
