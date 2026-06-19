@@ -12,8 +12,6 @@ all in plain Markdown, all on your machine.**
 ![Obsidian](https://img.shields.io/badge/Obsidian-1.12.4%2B-7c3aed)
 ![Desktop](https://img.shields.io/badge/desktop-Windows%20%7C%20macOS%20%7C%20Linux-informational)
 
-<img src="docs/images/hero.png" alt="An annotated note with an inline highlight and a margin comment card" width="820">
-
 </div>
 
 Annotation Tutor Lite is a self-contained Obsidian plugin. You highlight a passage,
@@ -22,8 +20,7 @@ cells**, and brings them back on a forgetting-curve schedule so you remember. Th
 **no server, no database, no model API key baked in** — every artifact is a Markdown
 file in your Vault, so any agent (Claude Code, OpenCode, Codex) can read and extend it.
 
-> The "Lite" sibling of the full Annotation Tutor. It's a standalone project (its own
-> build; not part of the monorepo workspace).
+> The "Lite" build of Annotation Tutor — a focused, standalone Obsidian plugin.
 
 ## ✨ Why it's different
 
@@ -40,17 +37,6 @@ file in your Vault, so any agent (Claude Code, OpenCode, Codex) can read and ext
 - 🔌 **Bring your own engine.** Use the already-authenticated **OpenCode** CLI or any
   **OpenAI-compatible API** — your key lives only in your Vault's local plugin data.
 - 🌏 **Fully localized UI** in English, 简体中文, 繁體中文, and 日本語.
-
-## 📸 Screenshots
-
-|  |  |
-| :---: | :---: |
-| **Annotate & get a margin review** | **Review due cells (spaced repetition)** |
-| <img src="docs/images/review.png" alt="A highlighted passage with an agent review in a margin card" width="420"> | <img src="docs/images/srs.png" alt="The spaced-repetition review modal grading a memory cell" width="420"> |
-| **A generated study notebook** | **Inline translation while reading** |
-| <img src="docs/images/notebook.png" alt="A generated notebook page chaining notebook to annotation to source" width="420"> | <img src="docs/images/translate.png" alt="An inline gloss inserted after a foreign word" width="420"> |
-
-> Don't have these images yet? See [Adding screenshots](#-adding-screenshots) below.
 
 ## 📦 Download & install
 
@@ -249,37 +235,6 @@ Pure, unit-tested logic (no Obsidian imports): `src/model.ts`, `src/ids.ts`,
 
 See **[docs/guide.md](docs/guide.md)** for the learning model and
 `PrivTutor Lite MVP Design Spec.md` for the original product baseline.
-
-## 📸 Adding screenshots
-
-The images above live in [`docs/images/`](docs/images) and are referenced with relative
-paths, so they render on the GitHub repo page and in clones. To add or replace them:
-
-1. Capture a screenshot (PNG keeps text crisp; a short GIF is great for demos).
-2. Save it into `docs/images/` using the names this README expects: `hero.png`,
-   `review.png`, `srs.png`, `notebook.png`, `translate.png`.
-3. Commit the files (they're binary, so `git add` them and push):
-   ```bash
-   git add docs/images/*.png README.md
-   git commit -m "docs(TutorLite): add README screenshots"
-   git push
-   ```
-
-Referencing an image two ways:
-
-```markdown
-![Alt text](docs/images/review.png)                  <!-- simple, full width -->
-```
-```html
-<p align="center">
-  <img src="docs/images/review.png" alt="Alt text" width="420">   <!-- sized + centered -->
-</p>
-```
-
-Tips: keep files reasonably small (resize to ~1600px wide / a few hundred KB) so the page
-loads fast; always set `alt` text; use relative paths (not `C:\…` or `file://`) so they
-work for everyone. For a video, drag the file into a GitHub issue/PR comment — GitHub
-uploads it and gives you a `user-images.githubusercontent.com` URL you can paste here.
 
 ## 📄 License
 
