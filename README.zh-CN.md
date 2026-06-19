@@ -70,7 +70,7 @@ git clone https://github.com/Chain-Tang/PriveTutor.git      # 完整仓库
 然后构建并安装到某个 Vault：
 
 ```bash
-cd PriveTutor/TutorLite
+cd PriveTutor
 pnpm install
 pnpm install:vault -- --vault "/path/to/YourVault"   # 构建 + 拷贝 + 启用
 # 或，生成发行版产物（dist/ 下的 zip + 散装文件）：
@@ -199,15 +199,14 @@ Agent Memory/
 
 ## 开发
 
-在获取源码（[上文方式 4](#4-从源码构建开发者)）并于 `TutorLite/` 内运行 `pnpm install`
+在获取源码（[上文方式 4](#4-从源码构建开发者)）并于仓库根目录运行 `pnpm install`
 之后：
 
 - `pnpm typecheck` / `pnpm test` / `pnpm build` —— 质量门禁。
 - `pnpm dev` —— esbuild 监听构建。
 - `pnpm package` —— 构建并暂存 `dist/release/annotation-tutor-lite/` 与一个发行版 zip。
-- `pnpm install:dev-plugin -- --vault ../Tutor` —— 把构建产物拷贝进开发用 Vault
-  （默认为 `../Tutor`）；插件 id `annotation-tutor-lite` 让它能与完整版插件共存。
-  `pnpm install:vault` 会一步完成构建与安装。
+- `pnpm install:dev-plugin -- --vault "/path/to/YourVault"` —— 把构建产物拷贝进某个
+  Vault 以便测试。`pnpm install:vault -- --vault "…"` 会一步完成构建与安装。
 
 ## 架构
 

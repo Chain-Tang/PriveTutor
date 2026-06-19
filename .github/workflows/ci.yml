@@ -18,12 +18,9 @@ jobs:
           version: 10.33.2
       - uses: actions/setup-node@v4
         with:
-          # 22.17.x: node:sqlite ships FTS5 on Linux/macOS (22.13 did not).
           node-version: 22.17.1
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm check
-      - run: pnpm --dir TutorLite install --frozen-lockfile
-      - run: pnpm --dir TutorLite typecheck
-      - run: pnpm --dir TutorLite test
-      - run: pnpm --dir TutorLite build
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build

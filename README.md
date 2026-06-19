@@ -1,165 +1,288 @@
-# 🎓 Annotation Tutor
+<div align="center">
 
+# 📝 Annotation Tutor Lite
 
-## What is this?
+**English** · [简体中文](README.zh-CN.md)
 
-**Annotation Tutor** is an Obsidian tool for active learners. Highlight a passage,
-write what you think it means, and a local AI agent — **OpenCode**, Codex, or
-Claude Code — reviews your understanding: correcting mistakes, filling gaps, and
-building a durable, searchable *learning memory* in plain Markdown. It can also
-translate and pre-gloss foreign-language notes inline as you read.
+**Turn what you read into learning memory your AI tutor can actually use —
+all in plain Markdown, all on your machine.**
 
-Everything runs on your machine. **No cloud, no vector DB, no required API keys** —
-agents authenticate through their own CLIs, and your notes never leave your Vault.
+[![Release](https://img.shields.io/github/v/release/Chain-Tang/PriveTutor?label=release&color=7c3aed)](https://github.com/Chain-Tang/PriveTutor/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/Chain-Tang/PriveTutor/total?color=7c3aed)](https://github.com/Chain-Tang/PriveTutor/releases)
+![Obsidian](https://img.shields.io/badge/Obsidian-1.12.4%2B-7c3aed)
+![Desktop](https://img.shields.io/badge/desktop-Windows%20%7C%20macOS%20%7C%20Linux-informational)
 
-It comes in two editions:
+<img src="docs/images/hero.png" alt="An annotated note with an inline highlight and a margin comment card" width="820">
 
-- 🪶 **TutorLite** — a single, self-contained Obsidian plugin. Markdown-only, zero
-  infrastructure. **This is the one most people want.**
-- 🧰 **Full MVP** — a server-backed build (local REST + MCP server, SQLite/FTS5
-  index, CLI) for power users and integrations.
+</div>
 
----
+Annotation Tutor Lite is a self-contained Obsidian plugin. You highlight a passage,
+write what you think it means, and an AI tutor reviews it, distills durable **memory
+cells**, and brings them back on a forgetting-curve schedule so you remember. There's
+**no server, no database, no model API key baked in** — every artifact is a Markdown
+file in your Vault, so any agent (Claude Code, OpenCode, Codex) can read and extend it.
 
-## ✨ Features
+> The "Lite" sibling of the full Annotation Tutor. It's a standalone project (its own
+> build; not part of the monorepo workspace).
 
-- 📝 **Annotate → review** — highlight, write your understanding, get an AI review right beside your notes.
-- 🌐 **Inline translation** — `Alt+T` glosses a word or passage; `Ctrl+Alt+T` pre-translates the whole document into a per-file glossary so later lookups are instant.
-- 🤖 **Bring your own agent** — OpenCode (recommended), Codex, or Claude Code, already authenticated via their own CLI.
-- 🧠 **Memory as Markdown** — annotations, memory cells, and a learner profile you can read, edit, and `grep`.
-- 🔒 **Local-first & private** — your Vault is the source of truth; no keys are stored in this repo.
+## ✨ Why it's different
 
----
+- 🗂 **Your data stays yours.** Annotations, reviews, cells, scenes, and your learner
+  profile are all human-readable Markdown in your Vault. Nothing is locked in a binary.
+- 🧠 **A real learning loop, not just notes.** Reviews become **memory cells**, cells
+  auto-group into **scenes**, and **spaced repetition (SM-2)** schedules them before you
+  forget — grounded in the Ebbinghaus forgetting curve.
+- 📓 **A study notebook that reads like a book.** One command turns scattered
+  annotations into a navigable notebook with dated links chaining
+  notebook → annotation → original source.
+- 🌐 **Read in any language.** Inline word/phrase glosses (`Alt+T`) and full-document
+  pre-translation (`Ctrl+Alt+T`) for immersive reading.
+- 🔌 **Bring your own engine.** Use the already-authenticated **OpenCode** CLI or any
+  **OpenAI-compatible API** — your key lives only in your Vault's local plugin data.
+- 🌏 **Fully localized UI** in English, 简体中文, 繁體中文, and 日本語.
 
-## 🧭 The learning method
+## 📸 Screenshots
 
-Annotation Tutor is built around how people actually learn deeply — not just
-collect highlights. Each principle maps to a concrete feature:
+|  |  |
+| :---: | :---: |
+| **Annotate & get a margin review** | **Review due cells (spaced repetition)** |
+| <img src="docs/images/review.png" alt="A highlighted passage with an agent review in a margin card" width="420"> | <img src="docs/images/srs.png" alt="The spaced-repetition review modal grading a memory cell" width="420"> |
+| **A generated study notebook** | **Inline translation while reading** |
+| <img src="docs/images/notebook.png" alt="A generated notebook page chaining notebook to annotation to source" width="420"> | <img src="docs/images/translate.png" alt="An inline gloss inserted after a foreign word" width="420"> |
 
-- 🛋️ **Immersive, in-context learning.** Read, annotate, and converse without
-  leaving the page — margin cards and an in-card dialogue keep you *in the text*
-  instead of bouncing to a chatbot.
-- ✍️ **The Feynman technique.** You write what a passage means in *your own words*;
-  the tutor reviews that explanation, so the act of explaining is what reveals and
-  then closes the gaps.
-- ❓ **Socratic questioning.** Reviews often end with a question rather than a
-  verdict, nudging you one step further instead of just handing over the answer.
-- 🌐 **Rapid translation.** `Alt+T` glosses a word or passage inline; the whole
-  document can be pre-glossed in the background so foreign-language reading stays
-  fluid.
-- 🧠 **Memory units (cells).** Durable, single-idea memory cells are distilled from
-  your annotations and dialogue — each with a concept, a confidence, and a status —
-  forming a learning memory you can read and `grep`.
-- 📓 **A Zettelkasten notebook.** One command assembles your studied documents into
-  a slip-box: literature-note pages per source, structure-note chapters that link
-  related reading, and an index — so connections between ideas surface on their own.
-- 🔁 **Reinforcement along the forgetting curve.** Memory cells are scheduled with
-  the **SM-2** spaced-repetition algorithm (the SuperMemo/Anki scheme that counters
-  the Ebbinghaus forgetting curve); a status-bar counter shows what's due and a
-  review modal (Again / Hard / Good / Easy) re-schedules each cell.
-- 🎯 **Opt-in feedback (off by default).** Enable in *Settings → Learning*:
-  spaced-review reminders, targeted **weakness training** (AI practice on your weak
-  cells), a periodic **learning summary** (strengths / weaknesses / methods), and
-  **strength reinforcement** (next-step suggestions).
+> Don't have these images yet? See [Adding screenshots](#-adding-screenshots) below.
 
-All of it is plain, local Markdown you own — private, portable, and future-proof.
+## 📦 Download & install
 
----
+Pick whichever method suits you — all install the same plugin into
+`<YourVault>/.obsidian/plugins/annotation-tutor-lite/`. **Methods 1–3 need no Node or
+build tools.**
 
-## 🚀 Install TutorLite (≈2 minutes)
+### 1. Release zip (easiest)
 
-Requires **Node 22.13+** and **pnpm 10**.
+1. Download `annotation-tutor-lite-<version>.zip` from the
+   [**Releases** page](https://github.com/Chain-Tang/PriveTutor/releases/latest).
+2. Unzip it into your Vault's `.obsidian/plugins/` folder — it creates the
+   `annotation-tutor-lite/` folder for you.
+3. In Obsidian → **Settings → Community plugins**, turn off Restricted mode if needed,
+   enable **Annotation Tutor Lite**, and reload (`Ctrl/Cmd+R`).
+
+### 2. Loose files (manual)
+
+From the same [release](https://github.com/Chain-Tang/PriveTutor/releases/latest),
+download `main.js`, `manifest.json`, and `styles.css`, then drop all three into a folder
+you create at `<YourVault>/.obsidian/plugins/annotation-tutor-lite/`. Enable and reload as
+above.
+
+### 3. BRAT (auto-updates)
+
+Install the **BRAT** community plugin, then *Add beta plugin* → enter
+`Chain-Tang/PriveTutor`. BRAT installs from the latest release's assets and keeps the
+plugin updated. (If BRAT can't resolve it, use method 1 or 2.)
+
+### 4. Build from source (developers)
+
+You need **Node 22.13+** and **pnpm 10**. Get the source any of these ways:
 
 ```bash
-git clone https://github.com/Chain-Tang/PriveTutor.git
-cd PriveTutor/TutorLite
-pnpm install
-pnpm build                                          # -> dist/main.js
-pnpm install:dev-plugin -- --vault "C:\path\to\YourVault"
+git clone https://github.com/Chain-Tang/PriveTutor.git      # full repo
+# or:  gh repo clone Chain-Tang/PriveTutor
+# or:  download the source ZIP from the repo's green "Code" button (no git needed)
 ```
 
-The last command copies `manifest.json`, `main.js`, and `styles.css` into
-`<YourVault>/.obsidian/plugins/annotation-tutor-lite/`. Open Obsidian, enable
-**Annotation Tutor Lite** under *Settings → Community plugins*, and reload
-(`Ctrl/Cmd+R`). Prefer to install by hand? Copy those three files into that folder
-yourself (`main.js` is `dist/main.js` renamed).
-
-> Full plugin details, the Vault layout, and the agent review protocol live in
-> [**`TutorLite/README.md`**](TutorLite/README.md).
-
----
-
-## 🔌 Connect OpenCode (or a direct API)
-
-Open *Settings → General* and pick the engine that powers reviews, chat, and translation:
-
-- **OpenCode** *(recommended)* — install and log in to the
-  [`opencode`](https://opencode.ai) CLI, then select **OpenCode**. The plugin
-  drives your already-authenticated CLI over ACP and can read your Vault directly.
-  **No API key is stored.** Default model: `opencode/mimo-v2.5-free` (change
-  **Agent model** to use another).
-- **Direct API** — any OpenAI-compatible endpoint. Defaults target DeepSeek
-  (`https://api.deepseek.com/v1`, model `deepseek-chat`); paste your key under
-  **API key**. It is saved only in your Vault's local plugin data.
-
----
-
-## 📖 How to use
-
-1. **Annotate** — select text in a note, run **Add learning annotation**, and write your understanding.
-2. **Ask for a review** — run **Ask Agent**; your agent reads the annotation files, writes a review back into the note, and marks the task done. The plugin watches the files and refreshes the UI automatically.
-3. **Translate while reading** — `Alt+T` on a selection for an inline gloss, or `Ctrl+Alt+T` to pre-translate the open document so subsequent lookups are instant.
-4. **Open your notebook** — click the 📓 **notebook icon** in the left ribbon (or run **Open study notebook** from the command palette) to assemble everything you've studied into a Zettelkasten-style notebook; the first open builds it. The notebook's own **About this notebook** page explains its format and the ideas behind it.
-
-Your annotations, reviews, and memory cells are all plain Markdown under your
-Vault's `Agent Memory/` folder — portable and future-proof. Memory cells are
-captured automatically after a review, or on demand from the 🧠 button on a card.
-
----
-
-## 🧰 Full MVP (advanced)
-
-The server-backed edition adds a local REST + MCP server, a rebuildable
-SQLite/FTS5 index, and a CLI. Most users don't need it.
+Then build and install into a Vault:
 
 ```bash
-git clone https://github.com/Chain-Tang/PriveTutor.git
 cd PriveTutor
 pnpm install
-pnpm install:dev-plugin            # builds + installs the full plugin into ./Tutor
+pnpm install:vault -- --vault "/path/to/YourVault"   # build + copy + enable
+# or, to produce release artifacts (zip + loose files under dist/):
+pnpm package
 ```
 
-Open the `Tutor` folder as a Vault, enable **Annotation Tutor**, and reload. CLI tools:
+Then [connect an engine](#-connect-an-engine) and you're ready.
 
-```bash
-node apps/cli/dist/index.js doctor        --vault Tutor
-node apps/cli/dist/index.js start         --vault Tutor
-node apps/cli/dist/index.js rebuild-index --vault Tutor
+## 🚀 First run
+
+After enabling the plugin, **reload Obsidian once** (`Ctrl/Cmd+R`). Everything it needs is
+created automatically — you don't make any folders yourself:
+
+1. **Reload.** An `Agent Memory/` folder appears at your Vault root, scaffolded with
+   `annotations/`, `memory-cells/`, `scenes/`, `profiles/` (with an empty
+   `learner-profile.md`), and an **`AGENTS.md`** describing the file protocol for external
+   agents. (The folder name is the **Memory folder** setting; `AGENTS.md` comes from the
+   **Create agent instruction file** toggle — both on by default.)
+2. **Choose an engine** in **Settings → Annotation Tutor Lite** — see
+   [Connect an engine](#-connect-an-engine). For OpenCode you just install and
+   `opencode auth login` the CLI once; nothing extra is written into your Vault (no
+   `.opencode` config, no API key).
+3. **Annotate.** Select text → `Ctrl/Cmd+Shift+L` → write your understanding → ask the
+   tutor to review it.
+
+> The three files in the download (`main.js`, `manifest.json`, `styles.css`) are the whole
+> plugin — all the source is bundled into `main.js`. The `Agent Memory/` notes are
+> generated in your Vault on first run, not shipped in the download.
+
+## 🔌 Connect an engine
+
+Reviews, the tutor chat, and translation run on one engine — pick it in
+**Settings → General**:
+
+- **OpenCode** (recommended; it can read your Vault directly). Install and log in to the
+  [`opencode`](https://opencode.ai) CLI yourself, then set the engine to **OpenCode**.
+  The plugin drives your already-authenticated CLI over ACP — **no API key is stored**.
+  Default model is `opencode/mimo-v2.5-free`; change **Agent model** to use another.
+- **Direct API** (default): any OpenAI-compatible endpoint. Defaults target DeepSeek
+  (`https://api.deepseek.com/v1`, model `deepseek-chat`) — paste your key under
+  **API key**. The key lives only in your Vault's local plugin data, never in this repo.
+
+No cloud services or credentials ship with this plugin.
+
+## 🖥️ Platform support
+
+Desktop **Windows, macOS, and Linux** are all supported (Obsidian 1.12.4+); the plugin is
+desktop-only (mobile is not supported). The pure logic is unit-tested and the
+OS-touching code paths (locating the agent CLI, quoting, path handling) are written for
+all three platforms.
+
+One thing to know if you use the **OpenCode engine**: Obsidian launched from a Dock,
+Start menu, or desktop entry can inherit a minimal `PATH` that omits where CLIs install.
+The plugin compensates by also searching the usual locations — `%APPDATA%\npm` on Windows,
+and `/opt/homebrew/bin`, `/usr/local/bin`, `~/.opencode/bin`, `~/.local/bin`, `~/.bun/bin`
+on macOS/Linux. If your `opencode` lives somewhere unusual, set its full path as the
+engine command, or use the **Direct API** engine (no subprocess, works everywhere).
+
+## ⚙️ How it works
+
+1. Select text in a note → **Add learning annotation** (`Ctrl/Cmd+Shift+L`) → write your
+   understanding. The plugin inserts an Obsidian block id (`^ann-…`) and a per-annotation
+   Markdown file under `Agent Memory/annotations/`.
+2. **Ask the agent** to review it. Your engine reads the files (guided by
+   `Agent Memory/AGENTS.md`), writes a review into the annotation's **Agent Review**
+   section, and can distill a **memory cell**.
+3. Cells with a shared concept auto-form a **scene**; your **learner profile** tracks
+   durable facts about you over time.
+4. **Spaced repetition** resurfaces due cells; **Build notebook** turns everything into a
+   readable study notebook.
+
+The plugin owns the metadata, Selected Text, and User Note; the agent owns the Agent
+Review / Review History sections, which are preserved verbatim on every plugin edit.
+`index.json` (under the plugin folder) is a rebuildable cache — **Rebuild Annotation
+Tutor index** regenerates it from the Markdown.
+
+## 🧠 Core concepts
+
+- **Memory cell** — an atomic, evidence-backed memory distilled from one or more
+  annotations (a concept, your grasp of it, a confidence, and a spaced-repetition
+  schedule). This is the unit your tutor remembers and reviews.
+- **Scene** — a context that groups related cells. Scenes form **automatically** once
+  two or more cells share a concept; you (or the agent) can also author your own.
+- **Learner profile** — an auditable, plain-Markdown model of you: claims about your
+  strengths, gaps, and goals, each backed by evidence. The tutor uses it to personalize.
+- **Notebook** — a generated, human-readable study notebook (per-document pages, concept
+  chapters, a strengths/weaknesses summary) with dated links back to every annotation
+  and source.
+
+→ Full explanations, the data model, and how each piece is triggered are in
+**[docs/guide.md](docs/guide.md)**.
+
+## ⌨️ Keyboard shortcuts
+
+Defaults (Mod = `Ctrl` on Windows/Linux, `Cmd` on macOS):
+
+| Action | Shortcut |
+| --- | --- |
+| Add learning annotation | `Ctrl/Cmd + Shift + L` |
+| Translate selection (inline gloss) | `Alt + T` |
+| Pre-translate whole document (full-text) | `Ctrl/Cmd + Alt + T` |
+
+Every other command (Open study notebook, Build notebook, Review due cells, Open tutor
+chat, …) has **no default hotkey** — assign one in **Settings → Hotkeys** by searching
+for "Annotation Tutor Lite".
+
+## 🗂️ Vault layout
+
+```
+Agent Memory/
+├── annotations/ANN-YYYYMMDD-NNN.md   # source of truth, one per annotation
+├── memory-cells/MEM-*.md             # atomic, evidence-backed memories (+ SRS schedule)
+├── scenes/SCENE-*.md                 # auto-grouped or hand-authored contexts
+├── profiles/
+│   ├── learner-profile.md            # auditable long-term learner model
+│   └── preferences.md                # optional; Agent writes disabled by default
+├── indexes/{annotations,cells,scenes}.md
+├── proposals/{pending,archive}/      # confirmation-mode review queue
+├── Notebook/                         # generated study notebook
+│   ├── Notebook.md                   #   entry point / map of content
+│   ├── pages/<doc>.md                #   one literature note per studied document
+│   ├── chapters/<topic>.md           #   concept chapters grouping related pages
+│   └── Learning summary.md           #   strengths / weaknesses / methods
+├── annotation-memory.md              # generated overview / agent entry point
+├── recent-learning.md                # generated short summary
+├── agent-inbox.md                    # task queue
+└── AGENTS.md                         # generated agent instructions
 ```
 
-Architecture: `domain → core → service → apps/{obsidian-plugin, cli}`, with `mcp`
-and `agent-bridges` layered on `core`. See
-[`docs/project-status.md`](docs/project-status.md) for status and roadmap.
-
-> **Note:** the full MVP's SQLite search needs **Node 22.17+** — earlier
-> `node:sqlite` builds lack the FTS5 module on Linux/macOS. TutorLite has no such
-> requirement.
-
----
+New files use YAML Properties plus readable Markdown bodies and Obsidian Wikilinks.
+Memory writes default to `direct`; switch to `confirmation` in settings to route proposed
+Cell/Scene/Profile changes through the **Proposals** tab.
 
 ## 🛠️ Development
 
-```bash
-# TutorLite (standalone — run from inside the folder)
-cd TutorLite && pnpm install && pnpm check     # typecheck + test + build
+After getting the source ([method 4 above](#4-build-from-source-developers)) and running
+`pnpm install` at the repo root:
 
-# Full MVP (workspace root)
-pnpm install && pnpm check
+- `pnpm typecheck` / `pnpm test` / `pnpm build` — the gate.
+- `pnpm dev` — esbuild watch.
+- `pnpm package` — build + stage `dist/release/annotation-tutor-lite/` and a release zip.
+- `pnpm install:dev-plugin -- --vault "/path/to/YourVault"` — copy the built plugin into a
+  Vault for testing. `pnpm install:vault -- --vault "…"` builds then installs in one step.
+
+## 🏗️ Architecture
+
+Pure, unit-tested logic (no Obsidian imports): `src/model.ts`, `src/ids.ts`,
+`src/anchors.ts`, `src/srs.ts`, `src/memory-derive.ts`, `src/learning.ts`,
+`src/index-table.ts`, `src/reading-highlight.ts`, `src/markdown/*`. Obsidian-bound layer:
+`src/store.ts` (file I/O + self-write loop-guard), `src/watcher.ts`, `src/decorations.ts`,
+`src/editor.ts`, `src/settings.ts`, `src/views/*`, the `*-controller.ts` modules, and
+`src/main.ts` (wiring). Tests live in `tests/`.
+
+See **[docs/guide.md](docs/guide.md)** for the learning model and
+`PrivTutor Lite MVP Design Spec.md` for the original product baseline.
+
+## 📸 Adding screenshots
+
+The images above live in [`docs/images/`](docs/images) and are referenced with relative
+paths, so they render on the GitHub repo page and in clones. To add or replace them:
+
+1. Capture a screenshot (PNG keeps text crisp; a short GIF is great for demos).
+2. Save it into `docs/images/` using the names this README expects: `hero.png`,
+   `review.png`, `srs.png`, `notebook.png`, `translate.png`.
+3. Commit the files (they're binary, so `git add` them and push):
+   ```bash
+   git add docs/images/*.png README.md
+   git commit -m "docs(TutorLite): add README screenshots"
+   git push
+   ```
+
+Referencing an image two ways:
+
+```markdown
+![Alt text](docs/images/review.png)                  <!-- simple, full width -->
+```
+```html
+<p align="center">
+  <img src="docs/images/review.png" alt="Alt text" width="420">   <!-- sized + centered -->
+</p>
 ```
 
-CI runs the same checks on **Linux, Windows, and macOS**.
+Tips: keep files reasonably small (resize to ~1600px wide / a few hundred KB) so the page
+loads fast; always set `alt` text; use relative paths (not `C:\…` or `file://`) so they
+work for everyone. For a video, drag the file into a GitHub issue/PR comment — GitHub
+uploads it and gives you a `user-images.githubusercontent.com` URL you can paste here.
 
----
+## 📄 License
 
-<p align="center">Built for the Obsidian community. Local-first, always.</p>
-```
+This repository does not yet include a license file, so default copyright applies (all
+rights reserved by the author). If you intend it to be open source, add a `LICENSE` (MIT
+is a common, permissive choice) and this section can link to it.
