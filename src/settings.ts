@@ -178,6 +178,7 @@ export class AnnotationTutorLiteSettingTab extends PluginSettingTab {
             this.plugin.applyDisplaySettings();
           })
       );
+    this.renderHighlightColor(container);
     this.addToggle(container, "set.showMarker", "showMarker");
     this.addToggle(container, "set.marginComments", "marginComments");
     this.addToggle(container, "set.marginPaper", "marginPaper");
@@ -246,6 +247,82 @@ export class AnnotationTutorLiteSettingTab extends PluginSettingTab {
       [t("settings.rebuild"), () => this.plugin.rebuildIndex(true)]
     ]);
     this.renderDiagnostics(container);
+  }
+
+  /**
+   * Annotation color control: a mode picker (follow the theme accent, or a custom
+   * color) plus, in custom mode, a color picker. A mode switch re-renders the
+   * page to reveal/hide the picker; the picker itself only repaints the highlight
+   * (no full re-render, which would close the open picker) so dragging stays live.
+   */
+  private renderHighlightColor(container: HTMLElement): void {
+    const custom = this.plugin.settings.highlightColor !== "";
+    new Setting(container)
+      .setName(t("set.highlightColor"))
+      .setDesc(t("set.highlightColorDesc"))
+      .addDropdown((dropdown) =>
+        dropdown
+          .addOptions({
+            theme: t("hlColor.theme"),
+            custom: t("hlColor.custom")
+          })
+          .setValue(custom ? "custom" : "theme")
+          .onChange(async (value) => {
+            this.plugin.settings.highlightColor =
+              value === "custom"
+                ? this.plugin.settings.highlightColor || this.themeAccentHex()
+                : "";
+            await this.plugin.persistSettings();
+            this.plugin.applyHighlightColor();
+            this.display();
+          })
+      );
+    if (!custom) return;
+    new Setting(container)
+      .setName(t("set.highlightCustomColor"))
+      .setDesc(t("set.highlightCustomColorDesc"))
+      .addColorPicker((picker) =>
+        picker
+          .setValue(this.plugin.settings.highlightColor || this.themeAccentHex())
+          .onChange(async (value) => {
+            this.plugin.settings.highlightColor = value;
+            await this.plugin.persistSettings();
+            // Repaint only the highlight; a full re-render would close the picker.
+            this.plugin.applyHighlightColor();
+          })
+      );
+  }
+
+  /**
+   * The theme's accent as a `#rrggbb` hex, used to seed the color picker the
+   * first time the learner switches to a custom color. Resolves
+   * `--interactive-accent` through a hidden probe (the variable itself may be
+   * declared as `hsl(...)`, not a literal hex), falling back to the brand purple.
+   */
+  private themeAccentHex(): string {
+    const probe = document.body.createDiv();
+    probe.style.color = "var(--interactive-accent)";
+    probe.style.display = "none";
+    const color = getComputedStyle(probe).color;
+    probe.remove();
+    const match = /^rgba?\(([^)]+)\)/.exec(color);
+    if (match?.[1]) {
+      const [r, g, b] = match[1]
+        .split(",")
+        .map((part) => Number.parseInt(part.trim(), 10));
+      if (
+        r !== undefined &&
+        g !== undefined &&
+        b !== undefined &&
+        Number.isFinite(r) &&
+        Number.isFinite(g) &&
+        Number.isFinite(b)
+      ) {
+        const hex = (n: number) => n.toString(16).padStart(2, "0");
+        return `#${hex(r)}${hex(g)}${hex(b)}`;
+      }
+    }
+    return "#7c3aed";
   }
 
   private renderAnnotations(container: HTMLElement): void {

@@ -40,6 +40,15 @@ describe("migrateSettings", () => {
     );
   });
 
+  it("canonicalizes a valid highlight color and rejects invalid ones", () => {
+    expect(migrateSettings({ highlightColor: "#7C3AED" }).highlightColor).toBe(
+      "#7c3aed"
+    );
+    expect(migrateSettings({ highlightColor: "purple" }).highlightColor).toBe("");
+    expect(migrateSettings({ highlightColor: 42 }).highlightColor).toBe("");
+    expect(migrateSettings({}).highlightColor).toBe("");
+  });
+
   it("passes through known fields and fills missing ones", () => {
     const migrated = migrateSettings({ memoryRoot: "Notes", showMarker: false });
     expect(migrated.memoryRoot).toBe("Notes");

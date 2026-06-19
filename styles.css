@@ -12,23 +12,28 @@
 
 /* --- in-editor highlight variants (settings: highlightStyle) -------------- */
 
+/* The highlight color follows the theme accent by default; a custom color sets
+   --atl-hl-color (and a translucent --atl-hl-bg-color) on <body>, see
+   highlight-color.ts / main.applyHighlightColor. */
+
 .atl-hl-dotted {
-  text-decoration: underline dotted var(--text-accent);
+  text-decoration: underline dotted var(--atl-hl-color, var(--text-accent));
   text-underline-offset: 3px;
 }
 
 .atl-hl-wavy {
-  text-decoration: underline wavy var(--text-accent);
+  text-decoration: underline wavy var(--atl-hl-color, var(--text-accent));
   text-underline-offset: 3px;
 }
 
 .atl-hl-bg {
-  background-color: var(--text-highlight-bg);
+  background-color: var(--atl-hl-bg-color, var(--text-highlight-bg));
   border-radius: var(--radius-s);
 }
 
 .atl-hl-bold {
   font-weight: var(--font-bold, 700);
+  color: var(--atl-hl-color, inherit);
 }
 
 /* --- the clickable footnote marker (replaces the raw ^block-id) ----------- */
@@ -79,7 +84,7 @@
 
 .cm-line [data-atl-id]:not(.atl-marker):hover,
 .markdown-rendered [data-atl-id]:not(.atl-marker):hover {
-  text-decoration-color: var(--text-accent);
+  text-decoration-color: var(--atl-hl-color, var(--text-accent));
   background-color: var(--background-modifier-hover);
 }
 

@@ -78,6 +78,7 @@ import {
   styleClass,
   type AnchorMark
 } from "./decorations-plan.js";
+import { highlightColorVars } from "./highlight-color.js";
 import {
   marginRailExtension,
   setMarginCardHandlers,
@@ -189,6 +190,7 @@ export default class AnnotationTutorLitePlugin extends Plugin {
       this.settings.highlightStyle === "none"
         ? DEFAULT_SETTINGS.highlightStyle
         : this.settings.highlightStyle;
+    this.applyHighlightColor();
     this.store = new VaultStore(this.app, this.manifest.id, () => this.settings);
     this.watcher = new MemoryWatcher(
       this.store,
@@ -331,6 +333,8 @@ export default class AnnotationTutorLitePlugin extends Plugin {
   public override onunload(): void {
     this.watcher?.dispose();
     this.readingRail.detach();
+    document.body.style.removeProperty("--atl-hl-color");
+    document.body.style.removeProperty("--atl-hl-bg-color");
     setMarkerClickHandler(null);
     setMarginCardHandlers(null);
     setCardGeomStore(null);
@@ -399,8 +403,29 @@ export default class AnnotationTutorLitePlugin extends Plugin {
    * the settings tab, so an open dropdown keeps its styling after selection.
    */
   public applyDisplaySettings(): void {
+    this.applyHighlightColor();
     void this.refreshDecorations();
     this.review.refreshBadge();
+  }
+
+  /**
+   * Push the annotation highlight color into the DOM as CSS custom properties on
+   * <body>, which the `.atl-hl-*` rules read. An empty/invalid color removes the
+   * properties so the highlight falls back to the theme accent
+   * (`var(--text-accent)`); a hex color tints the underline/bold and supplies a
+   * translucent fill for the background-tint style.
+   */
+  public applyHighlightColor(): void {
+    const { style } = document.body;
+    const vars = highlightColorVars(this.settings.highlightColor);
+    if (vars) {
+      for (const [name, value] of Object.entries(vars)) {
+        style.setProperty(name, value);
+      }
+    } else {
+      style.removeProperty("--atl-hl-color");
+      style.removeProperty("--atl-hl-bg-color");
+    }
   }
 
   // --- lifecycle -------------------------------------------------------------

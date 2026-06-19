@@ -1,6 +1,8 @@
 // Settings data + migration, free of any runtime imports so it can be unit
 // tested without an Obsidian runtime. The SettingTab UI lives in settings.ts.
 
+import { normalizeHighlightColor } from "./highlight-color.js";
+
 /** How annotated source text is styled in the editor. */
 export type HighlightStyle =
   | "dotted-underline"
@@ -50,6 +52,12 @@ export type AnnotationTutorLiteSettings = {
   memoryRoot: string;
   useBlockAnchors: boolean;
   highlightStyle: HighlightStyle;
+  /**
+   * Color for the annotation highlight (underline/bold tint, and a translucent
+   * background-tint fill). Empty follows the theme accent (`var(--text-accent)`);
+   * a hex string (e.g. `#7c3aed`) is a custom color the learner picked.
+   */
+  highlightColor: string;
   showMarker: boolean;
   marginComments: boolean;
   marginPaper: boolean;
@@ -120,6 +128,7 @@ export const DEFAULT_SETTINGS: AnnotationTutorLiteSettings = {
   memoryRoot: "Agent Memory",
   useBlockAnchors: true,
   highlightStyle: "dotted-underline",
+  highlightColor: "",
   showMarker: true,
   marginComments: true,
   marginPaper: false,
@@ -188,6 +197,9 @@ export function migrateSettings(loaded: unknown): AnnotationTutorLiteSettings {
   if (!highlightStyles.includes(settings.highlightStyle)) {
     settings.highlightStyle = DEFAULT_SETTINGS.highlightStyle;
   }
+  // A valid hex stays (canonicalized); anything else falls back to "" = follow
+  // the theme accent.
+  settings.highlightColor = normalizeHighlightColor(settings.highlightColor);
   if (
     settings.memoryWriteMode !== "direct" &&
     settings.memoryWriteMode !== "confirmation"
