@@ -12,9 +12,9 @@ resurfaces them on a spaced-repetition schedule (SM-2), and weaves them into a r
 **notebook** — plus inline / full-document **translation**. Everything is plain Markdown
 in the user's Vault; no server, no database, no API key baked into the code.
 
-- **Repo:** `Chain-Tang/PriveTutor`, branch `main` (this repo *is* the plugin — it was a
+- **Repo:** `Chain-Tang/AnnotationTutor`, branch `main` (this repo *is* the plugin — it was a
   monorepo until the standalone restructure; the old full project is only in git history).
-- **Current version:** see `manifest.json` (`0.1.3` at handoff). Latest GitHub Release: `v0.1.3`.
+- **Current version:** see `manifest.json` (`0.1.4`). Latest GitHub Release: `v0.1.4`.
 - **Runtime:** runs inside Obsidian's bundled Electron/Node runtime — **end users do NOT
   install Node.js**. It's desktop-only because it uses Node APIs (spawning a CLI, fs).
 
@@ -96,8 +96,8 @@ in the user's Vault; no server, no database, no API key baked into the code.
 Prereqs: **Node.js 22.13+** and **pnpm 10** (only for development — not for end users).
 
 ```bash
-git clone https://github.com/Chain-Tang/PriveTutor.git
-cd PriveTutor
+git clone https://github.com/Chain-Tang/AnnotationTutor.git
+cd AnnotationTutor
 pnpm install
 pnpm typecheck && pnpm test && pnpm build    # the gate — expect ~272 tests green
 ```
@@ -126,7 +126,7 @@ git commit -am "chore: release vX.Y.Z" && git push origin main
 pnpm package          # → dist/annotation-tutor-lite-X.Y.Z.zip + dist/release/<id>/*
 # 4. Publish (gh is NOT on PATH on the current Windows machine — use the full path):
 "C:\Program Files\GitHub CLI\gh.exe" release create vX.Y.Z \
-  --repo Chain-Tang/PriveTutor --target main --title "Annotation Tutor Lite vX.Y.Z" \
+  --repo Chain-Tang/AnnotationTutor --target main --title "Annotation Tutor Lite vX.Y.Z" \
   --notes-file <notes.md> \
   dist/annotation-tutor-lite-X.Y.Z.zip \
   dist/release/annotation-tutor-lite/main.js \
