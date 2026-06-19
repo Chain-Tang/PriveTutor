@@ -37,7 +37,7 @@ OpenCode、Codex）都能读取并扩展它。
 
 ### 1. 发行版 zip（最简单）
 
-1. 从 [**Releases** 页面](https://github.com/Chain-Tang/PriveTutor/releases/latest)
+1. 从 [**Releases** 页面](https://github.com/Chain-Tang/AnnotationTutor/releases/latest)
    下载 `annotation-tutor-lite-<版本号>.zip`。
 2. 将其解压到 Vault 的 `.obsidian/plugins/` 文件夹下 —— 它会自动为你创建
    `annotation-tutor-lite/` 文件夹。
@@ -46,7 +46,7 @@ OpenCode、Codex）都能读取并扩展它。
 
 ### 2. 散装文件（手动）
 
-从同一个 [发行版](https://github.com/Chain-Tang/PriveTutor/releases/latest)
+从同一个 [发行版](https://github.com/Chain-Tang/AnnotationTutor/releases/latest)
 下载 `main.js`、`manifest.json`、`styles.css` 三个文件，并把它们一起放进你手动创建的
 `<你的Vault>/.obsidian/plugins/annotation-tutor-lite/` 文件夹中。然后按上面的步骤启用
 并重新加载。
@@ -54,7 +54,7 @@ OpenCode、Codex）都能读取并扩展它。
 ### 3. BRAT（自动更新）
 
 安装社区插件 **BRAT**，然后选择 *Add beta plugin*（添加测试版插件）→ 填入
-`Chain-Tang/PriveTutor`。BRAT 会从最新发行版的资源安装，并保持插件自动更新。
+`Chain-Tang/AnnotationTutor`。BRAT 会从最新发行版的资源安装，并保持插件自动更新。
 （若 BRAT 无法解析，请改用方式 1 或 2。）
 
 ### 4. 从源码构建（开发者）
@@ -62,15 +62,15 @@ OpenCode、Codex）都能读取并扩展它。
 需要 **Node 22.13+** 与 **pnpm 10**。可用以下任意方式获取源码：
 
 ```bash
-git clone https://github.com/Chain-Tang/PriveTutor.git      # 完整仓库
-# 或：gh repo clone Chain-Tang/PriveTutor
+git clone https://github.com/Chain-Tang/AnnotationTutor.git      # 完整仓库
+# 或：gh repo clone Chain-Tang/AnnotationTutor
 # 或：在仓库绿色「Code」按钮处下载源码 ZIP（无需 git）
 ```
 
 然后构建并安装到某个 Vault：
 
 ```bash
-cd PriveTutor
+cd AnnotationTutor
 pnpm install
 pnpm install:vault -- --vault "/path/to/YourVault"   # 构建 + 拷贝 + 启用
 # 或，生成发行版产物（dist/ 下的 zip + 散装文件）：

@@ -7,8 +7,8 @@
 **Turn what you read into learning memory your AI tutor can actually use —
 all in plain Markdown, all on your machine.**
 
-[![Release](https://img.shields.io/github/v/release/Chain-Tang/PriveTutor?label=release&color=7c3aed)](https://github.com/Chain-Tang/PriveTutor/releases/latest)
-[![Downloads](https://img.shields.io/github/downloads/Chain-Tang/PriveTutor/total?color=7c3aed)](https://github.com/Chain-Tang/PriveTutor/releases)
+[![Release](https://img.shields.io/github/v/release/Chain-Tang/AnnotationTutor?label=release&color=7c3aed)](https://github.com/Chain-Tang/AnnotationTutor/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/Chain-Tang/AnnotationTutor/total?color=7c3aed)](https://github.com/Chain-Tang/AnnotationTutor/releases)
 ![Obsidian](https://img.shields.io/badge/Obsidian-1.12.4%2B-7c3aed)
 ![Desktop](https://img.shields.io/badge/desktop-Windows%20%7C%20macOS%20%7C%20Linux-informational)
 
@@ -47,7 +47,7 @@ build tools.**
 ### 1. Release zip (easiest)
 
 1. Download `annotation-tutor-lite-<version>.zip` from the
-   [**Releases** page](https://github.com/Chain-Tang/PriveTutor/releases/latest).
+   [**Releases** page](https://github.com/Chain-Tang/AnnotationTutor/releases/latest).
 2. Unzip it into your Vault's `.obsidian/plugins/` folder — it creates the
    `annotation-tutor-lite/` folder for you.
 3. In Obsidian → **Settings → Community plugins**, turn off Restricted mode if needed,
@@ -55,7 +55,7 @@ build tools.**
 
 ### 2. Loose files (manual)
 
-From the same [release](https://github.com/Chain-Tang/PriveTutor/releases/latest),
+From the same [release](https://github.com/Chain-Tang/AnnotationTutor/releases/latest),
 download `main.js`, `manifest.json`, and `styles.css`, then drop all three into a folder
 you create at `<YourVault>/.obsidian/plugins/annotation-tutor-lite/`. Enable and reload as
 above.
@@ -63,7 +63,7 @@ above.
 ### 3. BRAT (auto-updates)
 
 Install the **BRAT** community plugin, then *Add beta plugin* → enter
-`Chain-Tang/PriveTutor`. BRAT installs from the latest release's assets and keeps the
+`Chain-Tang/AnnotationTutor`. BRAT installs from the latest release's assets and keeps the
 plugin updated. (If BRAT can't resolve it, use method 1 or 2.)
 
 ### 4. Build from source (developers)
@@ -71,15 +71,15 @@ plugin updated. (If BRAT can't resolve it, use method 1 or 2.)
 You need **Node 22.13+** and **pnpm 10**. Get the source any of these ways:
 
 ```bash
-git clone https://github.com/Chain-Tang/PriveTutor.git      # full repo
-# or:  gh repo clone Chain-Tang/PriveTutor
+git clone https://github.com/Chain-Tang/AnnotationTutor.git      # full repo
+# or:  gh repo clone Chain-Tang/AnnotationTutor
 # or:  download the source ZIP from the repo's green "Code" button (no git needed)
 ```
 
 Then build and install into a Vault:
 
 ```bash
-cd PriveTutor
+cd AnnotationTutor
 pnpm install
 pnpm install:vault -- --vault "/path/to/YourVault"   # build + copy + enable
 # or, to produce release artifacts (zip + loose files under dist/):
