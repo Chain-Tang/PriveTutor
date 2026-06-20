@@ -14,7 +14,7 @@ in the user's Vault; no server, no database, no API key baked into the code.
 
 - **Repo:** `Chain-Tang/AnnotationTutor`, branch `main` (this repo *is* the plugin — it was a
   monorepo until the standalone restructure; the old full project is only in git history).
-- **Current version:** see `manifest.json` (`0.1.4`). Latest GitHub Release: `v0.1.4`.
+- **Current version:** see `manifest.json` (`0.1.5`). Latest GitHub Release: `v0.1.5`.
 - **Runtime:** runs inside Obsidian's bundled Electron/Node runtime — **end users do NOT
   install Node.js**. It's desktop-only because it uses Node APIs (spawning a CLI, fs).
 
