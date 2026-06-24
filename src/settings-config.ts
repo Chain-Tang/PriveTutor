@@ -13,8 +13,11 @@ export type HighlightStyle =
 
 export type MemoryWriteMode = "direct" | "confirmation";
 
-/** Persisted per-margin-card geometry: drag offset plus any user-resized size. */
-export type CardGeom = { dx: number; dy: number; w?: number; h?: number };
+/**
+ * Persisted per-margin-card geometry: drag offset, any user-resized size, and `s`
+ * — the CTRL+scroll text zoom scale (1 = default), so a card keeps its zoom too.
+ */
+export type CardGeom = { dx: number; dy: number; w?: number; h?: number; s?: number };
 
 /** Which engine produces reviews: a direct HTTPS API, or the OpenCode CLI. */
 export type ReviewEngine = "api" | "opencode";

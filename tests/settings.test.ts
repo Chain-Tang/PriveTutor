@@ -76,10 +76,11 @@ describe("migrateSettings", () => {
     ).toBe("confirmation");
   });
 
-  it("preserves persisted card geometry and isolates it from the defaults", () => {
-    const geom = { "ANN-1": { dx: 5, dy: 10, w: 280, h: 200 } };
+  it("preserves persisted card geometry (including the zoom scale) and isolates it from the defaults", () => {
+    const geom = { "ANN-1": { dx: 5, dy: 10, w: 280, h: 200, s: 1.4 } };
     const migrated = migrateSettings({ cardGeom: geom });
     expect(migrated.cardGeom).toEqual(geom);
+    expect(migrated.cardGeom["ANN-1"]?.s).toBe(1.4);
     // A fresh object, not an alias of DEFAULT_SETTINGS.cardGeom or the input.
     expect(migrated.cardGeom).not.toBe(geom);
     migrated.cardGeom["ANN-2"] = { dx: 0, dy: 0 };

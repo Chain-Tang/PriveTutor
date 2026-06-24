@@ -340,6 +340,22 @@
   display: none;
 }
 
+/* Paper mode reads as plain margin text, so hide the scrollbars on the card and
+   its inner panes (dialogue thread, review, inline diff) while keeping wheel and
+   trackpad scrolling. Non-paper cards keep their native scrollbars. */
+.atl-rail-card--paper,
+.atl-rail-card--paper .atl-rail-thread,
+.atl-rail-card--paper .atl-rail-review,
+.atl-rail-card--paper .atl-diff {
+  scrollbar-width: none; /* Firefox */
+}
+.atl-rail-card--paper::-webkit-scrollbar,
+.atl-rail-card--paper .atl-rail-thread::-webkit-scrollbar,
+.atl-rail-card--paper .atl-rail-review::-webkit-scrollbar,
+.atl-rail-card--paper .atl-diff::-webkit-scrollbar {
+  display: none; /* Chromium / Electron (Obsidian) */
+}
+
 .atl-rail-card-head {
   display: flex;
   align-items: center;
@@ -422,7 +438,7 @@
   background: transparent;
   resize: none;
   color: var(--text-normal);
-  font-size: var(--font-ui-smaller);
+  font-size: calc(var(--font-ui-smaller) * var(--atl-card-scale, 1));
   line-height: var(--line-height-tight);
 }
 
@@ -456,7 +472,7 @@
   max-height: 160px;
   overflow-y: auto;
   color: var(--text-faint);
-  font-size: var(--font-smaller);
+  font-size: calc(var(--font-smaller) * var(--atl-card-scale, 1));
   line-height: var(--line-height-tight);
   white-space: pre-wrap;
 }
@@ -466,7 +482,7 @@
   flex: none;
   margin-top: var(--size-2-2);
   color: var(--text-muted);
-  font-size: var(--font-smaller);
+  font-size: calc(var(--font-smaller) * var(--atl-card-scale, 1));
   line-height: var(--line-height-tight);
   font-style: italic;
   white-space: pre-wrap;
@@ -493,7 +509,7 @@
 .atl-rail-turn {
   border-radius: var(--radius-s);
   padding: var(--size-2-1) var(--size-2-2);
-  font-size: var(--font-smaller);
+  font-size: calc(var(--font-smaller) * var(--atl-card-scale, 1));
   line-height: var(--line-height-tight);
   white-space: pre-wrap;
 }
@@ -548,7 +564,7 @@
   border-radius: var(--radius-s);
   background: var(--background-primary);
   color: var(--text-normal);
-  font-size: var(--font-ui-smaller);
+  font-size: calc(var(--font-ui-smaller) * var(--atl-card-scale, 1));
   line-height: var(--line-height-tight);
 }
 
@@ -565,7 +581,7 @@
 }
 
 .atl-rail-editcard-title {
-  font-size: var(--font-smaller);
+  font-size: calc(var(--font-smaller) * var(--atl-card-scale, 1));
   color: var(--text-muted);
   margin-bottom: var(--size-2-1);
 }

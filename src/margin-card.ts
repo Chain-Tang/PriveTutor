@@ -10,6 +10,7 @@ import { t } from "./i18n.js";
 import type { AnchorMark } from "./decorations-plan.js";
 import type { DialogueTurn } from "./model.js";
 import { diffLineClass } from "./line-diff.js";
+import { nextCardScale } from "./card-zoom.js";
 
 /**
  * The outcome of one in-card dialogue turn. `edit` is present only when the
@@ -55,8 +56,11 @@ export function getMarginCardHandlers(): MarginCardHandlers | null {
   return handlers;
 }
 
-/** Per-card offset (drag) and size (resize), persisted across re-renders. */
-export type Geom = { dx: number; dy: number; w?: number; h?: number };
+/**
+ * Per-card offset (drag), size (resize), and `s` (CTRL+scroll text zoom scale),
+ * persisted across re-renders and reloads.
+ */
+export type Geom = { dx: number; dy: number; w?: number; h?: number; s?: number };
 
 /**
  * Durable storage for card geometry, wired by the plugin so a card's size/place
@@ -175,9 +179,32 @@ export function buildMarginCard(
   let applying = true;
   if (options.geom.w) card.style.width = `${options.geom.w}px`;
   if (options.geom.h) card.style.height = `${options.geom.h}px`;
+  // Restore the remembered text zoom (set by CTRL+scroll below).
+  if (options.geom.s) {
+    card.style.setProperty("--atl-card-scale", String(options.geom.s));
+  }
   requestAnimationFrame(() => {
     applying = false;
   });
+
+  // CTRL+scroll (or a mac trackpad pinch, which arrives as a ctrl-wheel) zooms the
+  // card's text by scaling --atl-card-scale; every text element derives its
+  // font-size from it, so the note, review, dialogue, and reply scale together.
+  // preventDefault claims the gesture from Electron's page-zoom / scroll.
+  card.addEventListener(
+    "wheel",
+    (event) => {
+      if (!event.ctrlKey) return;
+      event.preventDefault();
+      const current = options.geom.s ?? 1;
+      const next = nextCardScale(current, event.deltaY);
+      if (next === current) return;
+      options.geom.s = next;
+      card.style.setProperty("--atl-card-scale", String(next));
+      persistCardGeom(mark.id, options.geom);
+    },
+    { passive: false }
+  );
 
   // Only a deliberate resize gesture should change a card's remembered size.
   // Content changes (a review arriving, the textarea reflowing) must not, or one

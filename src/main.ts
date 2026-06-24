@@ -234,7 +234,8 @@ export default class AnnotationTutorLitePlugin extends Plugin {
           dx: geom.dx,
           dy: geom.dy,
           ...(geom.w ? { w: geom.w } : {}),
-          ...(geom.h ? { h: geom.h } : {})
+          ...(geom.h ? { h: geom.h } : {}),
+          ...(geom.s ? { s: geom.s } : {})
         };
         this.scheduleCardGeomSave();
       }
