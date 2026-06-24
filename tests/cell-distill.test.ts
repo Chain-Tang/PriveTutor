@@ -5,6 +5,7 @@ import {
   asText,
   cellTypeForCorrectness,
   confidenceForCorrectness,
+  normalizeConcept,
   parseJsonObject
 } from "../src/cell-distill.js";
 
@@ -33,6 +34,33 @@ describe("field coercion", () => {
     expect(asConfidence(5)).toBe(1);
     expect(asConfidence(-1)).toBe(0);
     expect(asConfidence("x")).toBe(0.6);
+  });
+});
+
+describe("normalizeConcept", () => {
+  it("keeps a clean short noun phrase unchanged", () => {
+    expect(normalizeConcept("Projection")).toBe("Projection");
+    expect(normalizeConcept("防御机制")).toBe("防御机制");
+  });
+  it("reduces a run-on sentence to its first clause", () => {
+    expect(normalizeConcept("我随后的解释集中在这种变化的原因：我提出，当我做出解释")).toBe(
+      "我随后的解释集中在这种变化的原因"
+    );
+  });
+  it("strips leading bullet/heading markers and wrapping quotes", () => {
+    expect(normalizeConcept('- "Attention"')).toBe("Attention");
+    expect(normalizeConcept("# Working memory")).toBe("Working memory");
+  });
+  it("caps latin phrases to six words and long space-free strings to 18 chars", () => {
+    expect(normalizeConcept("one two three four five six seven eight")).toBe(
+      "one two three four five six"
+    );
+    expect([...normalizeConcept("一二三四五六七八九十一二三四五六七八九二十")].length).toBe(18);
+  });
+  it("returns empty for blank or non-string input", () => {
+    expect(normalizeConcept("   ")).toBe("");
+    expect(normalizeConcept(undefined)).toBe("");
+    expect(normalizeConcept(42)).toBe("");
   });
 });
 

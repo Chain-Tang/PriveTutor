@@ -107,6 +107,7 @@ import { detectLanguageName } from "./lang.js";
 import { TranslationController } from "./translation-controller.js";
 import { NotebookController } from "./notebook-controller.js";
 import { ReviewController } from "./review-controller.js";
+import { deriveProfileSummary } from "./learning.js";
 import type { ReviewOutcome } from "./review-outcome.js";
 import {
   basename,
@@ -1858,7 +1859,13 @@ export default class AnnotationTutorLitePlugin extends Plugin {
     const profile = this.librarySnapshot.profiles.find(
       (item) => item.kind === "learner-profile"
     );
-    const summary = profile?.summary?.trim();
+    // Once the agent has written claims, trust its summary; until then the stored
+    // summary is just the init placeholder, so derive one from the learner's cells
+    // instead — useful context, and never the meaningless default.
+    const summary =
+      profile && profile.claims.length > 0
+        ? (profile.summary?.trim() ?? "")
+        : deriveProfileSummary(this.librarySnapshot.cells);
     if (!summary) return "";
     return summary.length > 600 ? `${summary.slice(0, 600)}…` : summary;
   }

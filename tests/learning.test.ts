@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { classifyCells, isStrength, isWeakness } from "../src/learning.js";
+import {
+  classifyCells,
+  deriveProfileSummary,
+  isStrength,
+  isWeakness
+} from "../src/learning.js";
 import type { MemoryCell } from "../src/model.js";
 import type { ReviewState } from "../src/srs.js";
 
@@ -76,5 +81,32 @@ describe("classifyCells", () => {
       cell({ id: "N", type: "understanding", confidence: 0.9, review: review({ reps: 0, lapses: 0 }) })
     ]);
     expect(strengths.map((c) => c.id)).toEqual(["N"]);
+  });
+});
+
+describe("deriveProfileSummary", () => {
+  it("names strengths, gaps, and methods from the cells", () => {
+    const summary = deriveProfileSummary([
+      cell({ id: "S", type: "understanding", concept: "Projection", confidence: 0.9 }),
+      cell({ id: "W", type: "misconception", concept: "Splitting", confidence: 0.3 }),
+      cell({ id: "M", type: "strategy", concept: "Active recall", confidence: 0.7 })
+    ]);
+    expect(summary).toContain("Strengths: Projection");
+    expect(summary).toContain("Working on: Splitting");
+    expect(summary).toContain("Methods: Active recall");
+  });
+
+  it("de-duplicates concepts and caps each list at four", () => {
+    const cells = Array.from({ length: 6 }, (_, i) =>
+      cell({ id: `S${i}`, type: "understanding", concept: `Topic ${i}`, confidence: 0.9 })
+    );
+    cells.push(cell({ id: "DUP", type: "understanding", concept: "Topic 0", confidence: 0.9 }));
+    const summary = deriveProfileSummary(cells);
+    expect(summary).toContain("Topic 0; Topic 1; Topic 2; Topic 3.");
+    expect(summary).not.toContain("Topic 4");
+  });
+
+  it("returns an empty string when there are no cells", () => {
+    expect(deriveProfileSummary([])).toBe("");
   });
 });

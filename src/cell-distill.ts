@@ -31,6 +31,36 @@ export function asText(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+/**
+ * Reduce a raw concept — a model's answer or a fallback slice of source text — to a
+ * short, canonical topic label: strip list/quote markers, keep the first clause,
+ * and cap the length. A run-on sentence becomes a brief phrase, so cells about the
+ * same topic group into a scene (deriveScenes) and every feature reads cleanly.
+ * Returns "" when nothing usable remains.
+ */
+export function normalizeConcept(value: unknown): string {
+  let text = asText(value);
+  if (!text) return "";
+  // Drop a leading list bullet / heading hash and any wrapping quotes.
+  text = text
+    .replace(/^[#>\-*\s]+/, "")
+    .replace(/^["'“”‘’]+|["'“”‘’]+$/g, "")
+    .trim();
+  // Keep only the first clause (split on ASCII + CJK sentence/clause punctuation).
+  const clause = text.split(/[.!?;:,。．！？；：，、\n\r]/u)[0]?.trim();
+  text = clause || text;
+  // Cap length: ~6 space-separated words, else ~18 code points for scripts without
+  // spaces (CJK), counting by code point so multi-byte glyphs aren't split.
+  const words = text.split(/\s+/).filter(Boolean);
+  if (words.length > 6) {
+    text = words.slice(0, 6).join(" ");
+  } else if (words.length <= 1) {
+    const chars = [...text];
+    if (chars.length > 18) text = chars.slice(0, 18).join("");
+  }
+  return text.trim();
+}
+
 export function asCellType(value: unknown): MemoryCell["type"] {
   return CELL_TYPES.includes(value as MemoryCell["type"])
     ? (value as MemoryCell["type"])

@@ -13,6 +13,7 @@ import {
   asText,
   cellTypeForCorrectness,
   confidenceForCorrectness,
+  normalizeConcept,
   parseJsonObject
 } from "./cell-distill.js";
 import { cellIdForAnnotation, nowIso } from "./ids.js";
@@ -90,7 +91,7 @@ export class ReviewController {
     const user = [
       "JSON keys:",
       "- type: one of understanding | misconception | goal | difficulty | strategy | progress",
-      "- concept: a short noun phrase naming the topic",
+      "- concept: a SHORT noun phrase naming the topic — 2-6 words, NOT a sentence (e.g. \"防御机制\", \"projection\")",
       `- summary: 1-3 sentences on what the learner now understands or struggles with (in ${lang})`,
       "- confidence: a number from 0 to 1",
       "",
@@ -109,9 +110,9 @@ export class ReviewController {
     const parsed = turn.ok ? parseJsonObject(turn.text) : null;
 
     const concept =
-      asText(parsed?.["concept"]) ||
-      record.concepts[0] ||
-      (record.selectedText ?? "").slice(0, 40).trim() ||
+      normalizeConcept(parsed?.["concept"]) ||
+      normalizeConcept(record.concepts[0]) ||
+      normalizeConcept(record.selectedText) ||
       record.annotationId;
     const summary =
       asText(parsed?.["summary"]) ||
@@ -151,8 +152,8 @@ export class ReviewController {
     const review = parseAgentReview(reviewText, nowIso());
     const summary = (review?.summary ?? reviewText).trim();
     const concept =
-      record.concepts[0] ||
-      (record.selectedText ?? "").slice(0, 40).trim() ||
+      normalizeConcept(record.concepts[0]) ||
+      normalizeConcept(record.selectedText) ||
       record.annotationId;
     if (!summary || !concept) return;
     const now = nowIso();

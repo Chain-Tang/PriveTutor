@@ -10,28 +10,43 @@ import type { MemoryCell, Scene } from "./model.js";
  * them apart from any hand-authored scene.
  */
 export function deriveScenes(cells: MemoryCell[], generatedAt: string): Scene[] {
-  const byConcept = new Map<string, MemoryCell[]>();
+  const byKey = new Map<string, { title: string; cells: MemoryCell[] }>();
   for (const cell of cells) {
     const concept = cell.concept.trim();
     if (!concept) continue;
-    const list = byConcept.get(concept);
-    if (list) list.push(cell);
-    else byConcept.set(concept, [cell]);
+    const key = conceptKey(concept);
+    if (!key) continue;
+    const group = byKey.get(key);
+    if (group) group.cells.push(cell);
+    else byKey.set(key, { title: concept, cells: [cell] });
   }
-  return [...byConcept.entries()]
-    .filter(([, group]) => group.length >= 2)
+  return [...byKey.entries()]
+    .filter(([, group]) => group.cells.length >= 2)
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([concept, group]) => ({
-      id: `SCENE-${slug(concept)}`,
+    .map(([, group]) => ({
+      id: `SCENE-${slug(group.title)}`,
       type: "topic" as const,
-      title: concept,
+      title: group.title,
       status: "active" as const,
-      summary: `Auto-grouped from ${group.length} memory cells about ${concept}.`,
-      cells: group.map((cell) => cell.id).sort(),
+      summary: `Auto-grouped from ${group.cells.length} memory cells about ${group.title}.`,
+      cells: group.cells.map((cell) => cell.id).sort(),
       tags: ["auto"],
       createdAt: generatedAt,
       updatedAt: generatedAt
     }));
+}
+
+/**
+ * A case- and punctuation-insensitive grouping key, so cells whose concepts differ
+ * only by capitalization or stray punctuation ("Projection", "projection.") still
+ * land in one scene. Empty when the concept has no letters or digits.
+ */
+function conceptKey(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim()
+    .replace(/\s+/g, " ");
 }
 
 /** A scene-id-safe slug (matches the schema's ^SCENE-[A-Za-z0-9_-]+$). */

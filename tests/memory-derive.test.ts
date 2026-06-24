@@ -50,6 +50,23 @@ describe("deriveScenes", () => {
     expect(scenes[0]!.id).toMatch(/^SCENE-[A-Za-z0-9_-]+$/);
   });
 
+  it("merges concepts that differ only by case or punctuation", () => {
+    const scenes = deriveScenes(
+      [
+        cell({ id: "MEM-1", concept: "Projection" }),
+        cell({ id: "MEM-2", concept: "projection." }),
+        cell({ id: "MEM-3", concept: "投射" }),
+        cell({ id: "MEM-4", concept: "投射，" })
+      ],
+      at
+    );
+    expect(scenes).toHaveLength(2);
+    const byTitle = Object.fromEntries(scenes.map((scene) => [scene.title, scene.cells]));
+    // The first-seen spelling becomes the display title; both variants group.
+    expect(byTitle["Projection"]).toEqual(["MEM-1", "MEM-2"]);
+    expect(byTitle["投射"]).toEqual(["MEM-3", "MEM-4"]);
+  });
+
   it("is deterministic and ignores blank concepts", () => {
     const cells = [
       cell({ id: "MEM-1", concept: "  " }),

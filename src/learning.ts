@@ -81,6 +81,28 @@ export function classifyCells(cells: MemoryCell[]): LearningClassification {
   return { strengths, weaknesses, methods };
 }
 
+/**
+ * A short, deterministic learner-profile summary built from the cells — a stand-in
+ * used until the tutor agent writes a richer profile. Names a few current
+ * strengths, gaps, and methods (from classifyCells), de-duplicated by concept.
+ * Returns "" when there are no cells, so callers can omit the profile context.
+ */
+export function deriveProfileSummary(cells: MemoryCell[]): string {
+  const { strengths, weaknesses, methods } = classifyCells(cells);
+  const names = (list: MemoryCell[]): string =>
+    [...new Set(list.map((cell) => cell.concept.trim()).filter(Boolean))]
+      .slice(0, 4)
+      .join("; ");
+  const parts: string[] = [];
+  const strong = names(strengths);
+  const weak = names(weaknesses);
+  const method = names(methods);
+  if (strong) parts.push(`Strengths: ${strong}.`);
+  if (weak) parts.push(`Working on: ${weak}.`);
+  if (method) parts.push(`Methods: ${method}.`);
+  return parts.join(" ");
+}
+
 function reps(cell: MemoryCell): number {
   return cell.review?.reps ?? 0;
 }

@@ -67,11 +67,11 @@ export function renderAgentInstructions(options: OverviewOptions): string {
   const writeInstructions =
     options.memoryWriteMode === "confirmation"
       ? [
-          `11. Write proposed Cell, Scene, or Profile changes under \`${root}/proposals/pending/\`.`,
+          `11. After each review, propose a learner-profile update (a one-paragraph Summary plus evidence-backed Claims) along with any Cell or Scene changes under \`${root}/proposals/pending/\`.`,
           "12. Do not write those proposed changes directly into the formal memory folders."
         ]
       : [
-          `11. You may write valid Cells, Scenes, and Learner Profile updates directly under \`${root}/\`.`,
+          `11. After each review, update \`${root}/profiles/learner-profile.md\`: keep its Summary to one short paragraph and add evidence-backed Claims that cite the annotation or cell. You may also write valid Cells and Scenes directly under \`${root}/\`.`,
           "12. Never delete formal memory files; use archived or superseded status."
         ];
   const preferenceInstruction = options.allowPreferenceWrites
@@ -91,7 +91,7 @@ export function renderAgentInstructions(options: OverviewOptions): string {
     "6. Never overwrite the **User Note** section of an annotation.",
     "7. Write your review into the **Agent Review** section of that annotation file.",
     "8. Prefer appending over rewriting; move older reviews to **Review History**.",
-    "9. For durable insights, create or update a memory cell.",
+    "9. For durable insights, create or update a memory cell — give it a SHORT noun-phrase `concept` (2-6 words, not a sentence) so related cells group into one scene.",
     "10. When you finish a task, set its Status to `completed` in `agent-inbox.md`.",
     ...writeInstructions,
     preferenceInstruction,
