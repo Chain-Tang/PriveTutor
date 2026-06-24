@@ -4,6 +4,8 @@
 
 **English** · [简体中文](README.zh-CN.md)
 
+### _Read it. Annotate it. Remember it._
+
 **Turn what you read into learning memory your AI tutor can actually use —
 all in plain Markdown, all on your machine.**
 
@@ -32,17 +34,51 @@ file in your Vault, so any agent (Claude Code, OpenCode, Codex) can read and ext
 - 📓 **A study notebook that reads like a book.** One command turns scattered
   annotations into a navigable notebook with dated links chaining
   notebook → annotation → original source.
-- 🌐 **Read in any language.** Inline word/phrase glosses (`Alt+T`) and full-document
-  pre-translation (`Ctrl+Alt+T`) for immersive reading.
+- 🌐 **Read in any language.** Inline word/phrase glosses and full-document
+  pre-translation for immersive reading (see [Keyboard shortcuts](#️-keyboard-shortcuts)).
 - 🔌 **Bring your own engine.** Use the already-authenticated **OpenCode** CLI or any
   **OpenAI-compatible API** — your key lives only in your Vault's local plugin data.
 - 🌏 **Fully localized UI** in English, 简体中文, 繁體中文, and 日本語.
 
-## 📦 Download & install
+## ⌨️ Keyboard shortcuts
 
-Pick whichever method suits you — all install the same plugin into
-`<YourVault>/.obsidian/plugins/annotation-tutor-lite/`. **Methods 1–3 need no Node or
-build tools.**
+Three commands ship with a default hotkey — and the defaults **differ by OS on purpose**:
+
+| Action | Windows / Linux | macOS |
+| --- | --- | --- |
+| Add learning annotation | `Ctrl + Shift + L` | `⌘ + Shift + L` |
+| Translate selection (inline gloss) | `Alt + T` | `⌘ + Shift + T` |
+| Pre-translate whole document (full text) | `Ctrl + Alt + T` | `⌘ + Shift + Y` |
+
+**Why macOS differs:** on macOS, `Option (⌥) + a letter` types a special glyph
+(e.g. ⌥+T → `†`) instead of registering as that key, so an `Alt`-based hotkey would
+silently never fire. The plugin therefore ships `⌘ + Shift` defaults on macOS and keeps
+the lighter `Alt` defaults on Windows/Linux.
+
+All three are **rebindable**: **Settings → Annotation Tutor Lite → Keyboard shortcuts**
+(or **Settings → Hotkeys**, then search "Annotation Tutor Lite"). Every other command
+(Open study notebook, Build notebook, Review due cells, Open tutor chat, …) has **no
+default hotkey** — assign your own the same way.
+
+## 🔌 Connect an engine
+
+Reviews, the tutor chat, and translation run on one engine — pick it in
+**Settings → General**:
+
+- **OpenCode** (recommended; it can read your Vault directly). Install and log in to the
+  [`opencode`](https://opencode.ai) CLI yourself, then set the engine to **OpenCode**.
+  The plugin drives your already-authenticated CLI over ACP — **no API key is stored**.
+  Default model is `opencode/mimo-v2.5-free`; change **Agent model** to use another.
+- **Direct API** (default): any OpenAI-compatible endpoint. Defaults target DeepSeek
+  (`https://api.deepseek.com/v1`, model `deepseek-chat`) — paste your key under
+  **API key**. The key lives only in your Vault's local plugin data, never in this repo.
+
+No cloud services or credentials ship with this plugin.
+
+<details>
+<summary>📦 <b>Download &amp; install</b> — four ways (methods 1–3 need no build tools)</summary>
+
+All install the same plugin into `<YourVault>/.obsidian/plugins/annotation-tutor-lite/`.
 
 ### 1. Release zip (easiest)
 
@@ -88,7 +124,10 @@ pnpm package
 
 Then [connect an engine](#-connect-an-engine) and you're ready.
 
-## 🚀 First run
+</details>
+
+<details>
+<summary>🚀 <b>First run</b> — what gets created automatically</summary>
 
 After enabling the plugin, **reload Obsidian once** (`Ctrl/Cmd+R`). Everything it needs is
 created automatically — you don't make any folders yourself:
@@ -109,22 +148,10 @@ created automatically — you don't make any folders yourself:
 > plugin — all the source is bundled into `main.js`. The `Agent Memory/` notes are
 > generated in your Vault on first run, not shipped in the download.
 
-## 🔌 Connect an engine
+</details>
 
-Reviews, the tutor chat, and translation run on one engine — pick it in
-**Settings → General**:
-
-- **OpenCode** (recommended; it can read your Vault directly). Install and log in to the
-  [`opencode`](https://opencode.ai) CLI yourself, then set the engine to **OpenCode**.
-  The plugin drives your already-authenticated CLI over ACP — **no API key is stored**.
-  Default model is `opencode/mimo-v2.5-free`; change **Agent model** to use another.
-- **Direct API** (default): any OpenAI-compatible endpoint. Defaults target DeepSeek
-  (`https://api.deepseek.com/v1`, model `deepseek-chat`) — paste your key under
-  **API key**. The key lives only in your Vault's local plugin data, never in this repo.
-
-No cloud services or credentials ship with this plugin.
-
-## 🖥️ Platform support
+<details>
+<summary>🖥️ <b>Platform support</b> — Windows · macOS · Linux</summary>
 
 Desktop **Windows, macOS, and Linux** are all supported (Obsidian 1.12.4+); the plugin is
 desktop-only (mobile is not supported). The pure logic is unit-tested and the
@@ -138,7 +165,10 @@ and `/opt/homebrew/bin`, `/usr/local/bin`, `~/.opencode/bin`, `~/.local/bin`, `~
 on macOS/Linux. If your `opencode` lives somewhere unusual, set its full path as the
 engine command, or use the **Direct API** engine (no subprocess, works everywhere).
 
-## ⚙️ How it works
+</details>
+
+<details>
+<summary>⚙️ <b>How it works</b></summary>
 
 1. Select text in a note → **Add learning annotation** (`Ctrl/Cmd+Shift+L`) → write your
    understanding. The plugin inserts an Obsidian block id (`^ann-…`) and a per-annotation
@@ -156,7 +186,10 @@ Review / Review History sections, which are preserved verbatim on every plugin e
 `index.json` (under the plugin folder) is a rebuildable cache — **Rebuild Annotation
 Tutor index** regenerates it from the Markdown.
 
-## 🧠 Core concepts
+</details>
+
+<details>
+<summary>🧠 <b>Core concepts</b></summary>
 
 - **Memory cell** — an atomic, evidence-backed memory distilled from one or more
   annotations (a concept, your grasp of it, a confidence, and a spaced-repetition
@@ -172,21 +205,10 @@ Tutor index** regenerates it from the Markdown.
 → Full explanations, the data model, and how each piece is triggered are in
 **[docs/guide.md](docs/guide.md)**.
 
-## ⌨️ Keyboard shortcuts
+</details>
 
-Defaults (Mod = `Ctrl` on Windows/Linux, `Cmd` on macOS):
-
-| Action | Shortcut |
-| --- | --- |
-| Add learning annotation | `Ctrl/Cmd + Shift + L` |
-| Translate selection (inline gloss) | `Alt + T` |
-| Pre-translate whole document (full-text) | `Ctrl/Cmd + Alt + T` |
-
-Every other command (Open study notebook, Build notebook, Review due cells, Open tutor
-chat, …) has **no default hotkey** — assign one in **Settings → Hotkeys** by searching
-for "Annotation Tutor Lite".
-
-## 🗂️ Vault layout
+<details>
+<summary>🗂️ <b>Vault layout</b></summary>
 
 ```
 Agent Memory/
@@ -213,7 +235,10 @@ New files use YAML Properties plus readable Markdown bodies and Obsidian Wikilin
 Memory writes default to `direct`; switch to `confirmation` in settings to route proposed
 Cell/Scene/Profile changes through the **Proposals** tab.
 
-## 🛠️ Development
+</details>
+
+<details>
+<summary>🛠️ <b>Development</b></summary>
 
 After getting the source ([method 4 above](#4-build-from-source-developers)) and running
 `pnpm install` at the repo root:
@@ -224,7 +249,10 @@ After getting the source ([method 4 above](#4-build-from-source-developers)) and
 - `pnpm install:dev-plugin -- --vault "/path/to/YourVault"` — copy the built plugin into a
   Vault for testing. `pnpm install:vault -- --vault "…"` builds then installs in one step.
 
-## 🏗️ Architecture
+</details>
+
+<details>
+<summary>🏗️ <b>Architecture</b></summary>
 
 Pure, unit-tested logic (no Obsidian imports): `src/model.ts`, `src/ids.ts`,
 `src/anchors.ts`, `src/srs.ts`, `src/memory-derive.ts`, `src/learning.ts`,
@@ -235,6 +263,8 @@ Pure, unit-tested logic (no Obsidian imports): `src/model.ts`, `src/ids.ts`,
 
 See **[docs/guide.md](docs/guide.md)** for the learning model and
 `PrivTutor Lite MVP Design Spec.md` for the original product baseline.
+
+</details>
 
 ## 📄 License
 
