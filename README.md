@@ -268,6 +268,5 @@ See **[docs/guide.md](docs/guide.md)** for the learning model and
 
 ## 📄 License
 
-This repository does not yet include a license file, so default copyright applies (all
-rights reserved by the author). If you intend it to be open source, add a `LICENSE` (MIT
-is a common, permissive choice) and this section can link to it.
+Released under the [**MIT License**](LICENSE) — free to use, modify, and distribute,
+including commercially, as long as the copyright and license notice are kept. © 2026 Chain.

@@ -159,7 +159,7 @@ real interactive terminal — a non-interactive shell cannot drive the browser f
   and `docs/images/` were removed. Add a clean Screenshots section once images exist.
 - **`README.zh-CN.md`** is the plain version — mirror the English README's header/badges if
   bilingual parity is wanted.
-- **No `LICENSE` file** yet (default copyright). Add one (e.g. MIT) if open-sourcing.
+- **`LICENSE`** — MIT (`Copyright (c) 2026 Chain`); `package.json` carries `"license": "MIT"`. The project is open source.
 - **No `CLAUDE.md`** (the monorepo one was removed). Run `/init` to regenerate a
   Lite-focused one if desired.
 - **Contributor graph:** git history has a stray `Your Name <you@example.com>` on 2 early

@@ -218,3 +218,8 @@ Agent Memory/
 
 学习模型详见 **[docs/guide.md](docs/guide.md)**；原始产品基线见
 `PrivTutor Lite MVP Design Spec.md`。
+
+## 许可证
+
+本项目以 [**MIT 许可证**](LICENSE) 发布——可自由使用、修改与分发（含商业用途），
+保留版权与许可声明即可。© 2026 Chain。
